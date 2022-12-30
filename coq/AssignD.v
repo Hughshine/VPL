@@ -44,6 +44,7 @@ NB: currently renaming on the underlying domain is encoded through as assume+pro
 
 *)
 
+Require Import String.
 Require Export ASCond.
 Require Import Debugging.
 Require Import BinPos.
@@ -56,6 +57,7 @@ Require MSetFacts.
 Module Import PositiveSetFacts:=MSetFacts.Facts(PositiveSet). 
 Require Export Setoid.
 Require Export Relation_Definitions.
+Import BinPosDef.
 
 Existing Instance PositiveSet.eq_equiv.
 
@@ -148,6 +150,7 @@ Qed.
   Hint Rewrite decode_encodeE: vpl.
 
   Local Opaque PositiveSet.mem.
+  Local Open Scope positive_scope.
 
   Lemma decode_diff_encodeE r aux m x: x <> (encodeE r (decode x)) -> decodeIn r aux m x = aux x.
   Proof.
@@ -396,10 +399,9 @@ Qed.
     unfold project, gamma. VPLAsimplify. simpl in * |- *.
     intros m v H0 aux.
     eapply D.gamma_ext; [ eauto | idtac | idtac ].
-    Focus 2.
-    + eapply D.project_correct with (m:=decodeIn (renaming a) aux m) (v:=v);
-      eauto.
-    + intro x'; unfold Mem.assign at 2.
+    2: { eapply D.project_correct with (m:=decodeIn (renaming a) aux m) (v:=v);
+      eauto. }
+    intro x'; unfold Mem.assign at 2.
     case (PVar.eq_dec (encodeE (renaming a) x) x').
     - intro; subst. autorewrite with progvar vpl; auto.
     - intros; apply decodeIn_simplify; auto with vpl.
@@ -468,27 +470,29 @@ Qed.
   Proof.
     simpl; unfold guassignAux, trace; VPLAsimplify. simpl in * |- *. unfold gamma; intros m v Hxsat H1 aux.
     eapply D.gamma_ext; [ eauto | idtac | idtac ].
-    Focus 2.
+    2: {
     refine (H0 (decodeIn (renaming a) (Mem.assign (encodeO (renaming a) x) v aux) _) (aux (encodeE (renaming a) x)) _).
       eapply H; eauto.
     rewrite <- xsat_sat.
     rewrite xsat_xmap.
     erewrite (eval_pointwise_compat (xsat_old_mdo _)); eauto.
-    erewrite (eval_pointwise_compat (xsat_new_mdo _)); eauto.
-    - intros x'; simpl. autorewrite with vpl; auto.
-    - intros x'. unfold Mem.assign at 2.
+    - erewrite (eval_pointwise_compat (xsat_new_mdo _)); eauto.
+      intros x'; simpl. autorewrite with vpl; auto.
+    - intro x'. unfold Mem.assign at 2 3.
+      case (PVar.eq_dec x x'); intros; autorewrite with progvar vpl; auto.
+    }
+    intros x'. unfold Mem.assign at 2.
     case (PVar.eq_dec (encodeE (renaming a) x) x'); simpl.
-    * intro; subst. autorewrite with vpl; auto.
-    * intro H2. case (PVar.eq_dec x' (encodeO (renaming a) x)).
+     * intro; subst. autorewrite with vpl; auto.
+     * intro H2. case (PVar.eq_dec x' (encodeO (renaming a) x)).
       + intros; subst; autorewrite with progvar vpl; auto.
       + intro H3; rewrite decode_sw_out; auto.
         apply decodeIn_simplify; auto with vpl.
-        intros; rewrite Mem.assign_out; auto.   
+        intros; rewrite Mem.assign_out; auto.
         intro; subst x; intuition.
         rewrite Mem.assign_out; auto.
-    - intro x'. unfold Mem.assign at 2 3.
-    case (PVar.eq_dec x x'); intros; autorewrite with progvar vpl; auto.
   Qed.
+
 
   Definition guassign x (c:cond) (a: t) : imp t :=   
     let f:=(encodeE (renaming a)) in
@@ -781,10 +785,8 @@ Qed.
     eapply R.rename_correct; eauto.
     autorewrite with vpl.
     eapply D.gamma_ext; [ eauto | idtac | idtac ].
-    Focus 2.
-    + eapply (H0 aux);
-      eauto.
-    + intro x'; unfold Mem.assign at 1.
+    2: { eapply (H0 aux); eauto. }
+    intro x'; unfold Mem.assign at 1.
     case (PVar.eq_dec (encodeE (renaming a) x) x').
     - intro; subst. autorewrite with progvar vpl; auto.
     - intros; apply decodeIn_simplify; auto with vpl.

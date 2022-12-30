@@ -65,7 +65,7 @@ Proof.
   intros; split.
   apply Z.min_case_strong; intuition.
   intuition;
-    (eapply Zle_trans; [ idtac | eauto ]; eauto with zarith).
+    (eapply Z.le_trans; [ idtac | eauto ]; eauto with zarith).
 Qed.
 
 

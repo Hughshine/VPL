@@ -22,7 +22,6 @@ Require Export Impure.
 Require DomainFunctors.
 Require Import ArithRing Ring.
 
-
 Open Scope impure.
 
 Module BasicD <: BasicDomain QNum.
@@ -738,6 +737,8 @@ Module QAtomicCondAssume <: HasAssume QNum QAtomicCond BasicD.
   Qed. 
     
 End QAtomicCondAssume.
+
+Module QPEQ := QPomialEquality QTerm QTerm.
 
 (* Gluing all this together *)
 
