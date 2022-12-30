@@ -8,6 +8,7 @@ Require Coq.setoid_ring.Cring.
 Require Export Coq.setoid_ring.Ring_polynom.
 Require Export ZArith.
 Require Import Equivalence.
+(* Require Import BinInt.Z. *)
 Require Extraction.
 
 Open Scope Z_scope.
@@ -18,8 +19,10 @@ Open Scope Z_scope.
     ring_theory >-> Ncring.Ring.
 
 *)
-Instance Zops: (@Ncring.Ring_ops Z 0%Z 1%Z Zplus Zmult Zminus Zopp (@eq Z)).
 
+Notation Zopp := (Z.opp).
+Instance Zops: (@Ncring.Ring_ops Z 0%Z 1%Z Zplus Zmult Zminus Zopp (@eq Z)).
+Defined.
 Instance Qri : (Ncring.Ring (Ro:=Zops)).
 constructor; try Morphisms.solve_proper.
 - exact eq_equivalence.
@@ -204,12 +207,16 @@ Proof.
   Grab Existential Variables. apply O.
 Qed.
 
+(* Locate Pmax.
+Print Pmax.
+Print Pos.max. *)
+
 Fixpoint bound (pe:PExpr): positive :=
   match pe with
   | PEX _ x => x
-  | PEadd pe1 pe2 => Pmax (bound pe1) (bound pe2)
-  | PEsub pe1 pe2 => Pmax (bound pe1) (bound pe2)
-  | PEmul pe1 pe2 => Pmax (bound pe1) (bound pe2)
+  | PEadd pe1 pe2 => Pos.max (bound pe1) (bound pe2)
+  | PEsub pe1 pe2 => Pos.max (bound pe1) (bound pe2)
+  | PEmul pe1 pe2 => Pos.max (bound pe1) (bound pe2)
   | PEopp pe => bound pe
   | PEpow pe _ => bound pe
   | _ => xH
@@ -241,7 +248,7 @@ Qed.
 Theorem PExpr_eq_correct (pe1 pe2: PExpr) (m: positive -> Z):
   PExpr_eq pe1 pe2 = true -> PEsem pe1 m = PEsem pe2 m.
 Proof.
-  unfold PExpr_eq, Peq. intro H; rewrite! PEnorm_correct with (bnd:=Pmax (bound pe1) (bound pe2)); auto.
+  unfold PExpr_eq, Peq. intro H; rewrite! PEnorm_correct with (bnd:=Pos.max (bound pe1) (bound pe2)); auto.
   unfold Pphi. refine (Peq_ok _ _ _ _ _ H _).
   - eapply Cring.cring_eq_ext; eauto.
   - eapply mkmorph; eauto.

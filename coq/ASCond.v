@@ -14,6 +14,7 @@ Require Import LinTerm.
 Require Import ASAtomicCond.
 Require Import OptionMonad.
 Require Export DomainInterfaces.
+Require Import String.
 
 Inductive binl: Set := AND | OR.
 
@@ -353,7 +354,7 @@ Module CondAssume (N: NumSig) (Import Cond: ASCondSig N) (AtomC: AtomicCondSig N
       | BinL OR cl cr => BIND auxl <- assumeRec cl a -;
                          BIND auxr <- assumeRec cr a -;
                          join auxl auxr
-      | Not c0 => pure (failwith INTERN "assume:Not" top)
+      | Not c0 => pure (failwith INTERN "assume:Not"%string top)
     end.
 
   Lemma assumeRec_correct: forall c a, WHEN p <- assumeRec c a THEN 

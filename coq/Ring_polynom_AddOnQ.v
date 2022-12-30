@@ -7,8 +7,10 @@ Require Coq.setoid_ring.Cring.
 Require Export Coq.setoid_ring.Ring_polynom.
 Require Export QArith.
 Require Import Equivalence.
+Require Import Lia.
 Open Scope Q_scope.
 Require Extraction.
+Require Import BinPos.
 
 (* * First: We declare Q as commutative ring of Cring.Cring ! *)
 
@@ -18,7 +20,7 @@ Require Extraction.
 *)
 
 Instance Qops: (@Ncring.Ring_ops Q 0%Q 1%Q Qplus Qmult Qminus Qopp (Qeq)).
-
+Defined.
 Instance Qri : (Ncring.Ring (Ro:=Qops)).
 constructor;try Morphisms.solve_proper.
 - exact Q_Setoid.
@@ -115,7 +117,7 @@ Lemma nat_iter_succ_r A (f: A -> A) x n:
 Proof.
   cutrewrite ((S n) = (n + 1)%nat).
   rewrite nat_iter_plus. auto.
-  omega.
+  lia.
 Qed.
 
 (*** END STUB *)
@@ -152,19 +154,22 @@ Proof.
       rewrite jump_iter_tl.
       rewrite <- nat_iter_plus.
       rewrite <- nat_iter_succ_r.
-      cutrewrite ((S (pred (Pos.to_nat p) + Pos.to_nat p))=(Pos.to_nat p~0)).
+      replace (S (pred (Pos.to_nat p) + Pos.to_nat p)) with (Pos.to_nat p~0).
+      (* cutrewrite ((S (pred (Pos.to_nat p) + Pos.to_nat p))=(Pos.to_nat p~0)). *)
       simpl; auto.
       rewrite Pos2Nat.inj_xO.
       generalize (Pos2Nat.is_pos p).
-      omega.
+      lia.
   - intros; simpl; rewrite IHp; simpl.
       rewrite jump_iter_tl.
       rewrite <- nat_iter_plus.
+      (* replace (((pred (Pos.to_nat p)) + Pos.to_nat p)%nat) with (Pos.to_nat p~0). *)
+
       cutrewrite (((pred (Pos.to_nat p)) + Pos.to_nat p)%nat=pred (Pos.to_nat p~0)).
       simpl; auto.
       rewrite Pos2Nat.inj_xO.
       generalize (Pos2Nat.is_pos p).
-      omega.
+      lia.
 Qed.
 
 Lemma List_nth_hd_iter_tl {A} (n:nat): forall (l:list A) (d:A),
@@ -193,7 +198,7 @@ Proof.
   unfold mkMemoryList.
   intros; assert (Y:(pred (Pos.to_nat p) < Pos.to_nat bnd)%nat).
     assert (X:forall (n m:nat), (0 < n)%nat -> (n <= m)%nat -> (pred n < m)%nat).
-    intros; omega.
+    intros; lia.
     apply X.
     apply Pos2Nat.is_pos.
     rewrite <- Pos2Nat.inj_le. auto.
@@ -201,20 +206,21 @@ Proof.
   - rewrite List.map_nth, seq_nth.
     apply f_equal.
     assert (X:forall (n:nat), (0 < n)%nat -> (1 + pred n)%nat = n).
-    + intros; omega. 
+    + intros; lia. 
     + rewrite X. apply Pos2Nat.id.
       apply Pos2Nat.is_pos.
     + auto.
   - intros; autorewrite with list; auto.
-  Grab Existential Variables. apply O.
+  Unshelve. 
+  apply O.
 Qed.
 
 Fixpoint bound (pe:PExpr): positive :=
   match pe with
   | PEX _ x => x
-  | PEadd pe1 pe2 => Pmax (bound pe1) (bound pe2)
-  | PEsub pe1 pe2 => Pmax (bound pe1) (bound pe2)
-  | PEmul pe1 pe2 => Pmax (bound pe1) (bound pe2)
+  | PEadd pe1 pe2 => Pos.max (bound pe1) (bound pe2)
+  | PEsub pe1 pe2 => Pos.max (bound pe1) (bound pe2)
+  | PEmul pe1 pe2 => Pos.max (bound pe1) (bound pe2)
   | PEopp pe => bound pe
   | PEpow pe _ => bound pe
   | _ => xH
@@ -246,7 +252,7 @@ Qed.
 Theorem PExpr_eq_correct (pe1 pe2: PExpr) (m: positive -> Q):
   PExpr_eq pe1 pe2 = true -> Qeq (PEsem pe1 m) (PEsem pe2 m).
 Proof.
-  unfold PExpr_eq, Peq. intro H; rewrite! PEnorm_correct with (bnd:=Pmax (bound pe1) (bound pe2)); auto.
+  unfold PExpr_eq, Peq. intro H; rewrite! PEnorm_correct with (bnd:=Pos.max (bound pe1) (bound pe2)); auto.
   unfold Pphi. refine (Peq_ok Q_Setoid _ _ _ _ H _).
   - eapply Cring.cring_eq_ext.
   - eapply mkmorph.

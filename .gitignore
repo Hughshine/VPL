@@ -2,6 +2,9 @@
 
 # coq files
 *.vo
+*.vos
+*.vok
+.lia.cache
 *.v.d
 *.glob
 *.dv

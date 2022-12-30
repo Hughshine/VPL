@@ -46,6 +46,8 @@ NB: currently renaming on the underlying domain is encoded through as assume+pro
 
 Require Export ASCond.
 Require Import Debugging.
+Require Import BinPos.
+Require Import String.
 
 Require Import MSets.MSetPositive.
 Require MSetDecide.
@@ -151,7 +153,7 @@ Qed.
   Proof.
     unfold decodeIn, encodeE, encode; destruct x as [p | p | ]; simpl;
       try (destruct (PositiveSet.mem p r); simpl; intuition).
-    destruct (PositiveSet.mem 1 r); simpl; auto.
+    destruct (PositiveSet.mem 1%positive r); simpl; auto.
   Qed.
 
   Lemma decode_encodeO r aux m x: decodeIn r aux m (encodeO r x) = aux (encodeO r x).
@@ -450,7 +452,7 @@ Qed.
 (* Assignements *)
 
   Definition guassignAux x (c:cond) (a: t) : imp t :=
-    let a:=trace DEBUG "guassign called" a in
+    let a:=trace DEBUG "guassign called"%string a in
     BIND tmp <- D.assume c (pol a) -;
     BIND aux <- D.project tmp (encodeE (renaming a) x) -;
     pure  {| pol := aux ; renaming := switch (renaming a) x |}.

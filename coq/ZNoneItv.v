@@ -10,6 +10,8 @@ Require Import Itv.
 Require Export ZNone.
 Require Import DomainInterfaces.
 Require Import LinTerm.
+Require Import String.
+Open Scope string_scope.
 Import ZN.
 
 Open Scope Z_scope.

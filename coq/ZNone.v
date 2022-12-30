@@ -238,7 +238,7 @@ Module ZN.
     | Some zx =>
          match y with
          | None => right _ _
-         | Some zy => if Z_eq_dec zx zy then left _ else right _ 
+         | Some zy => if Z.eq_dec zx zy then left _ else right _ 
          end
     end.
 
