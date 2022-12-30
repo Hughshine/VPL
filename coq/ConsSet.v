@@ -178,8 +178,22 @@ Module CsImpl(Cstr: CstrSig).
   | nil => acc
   | c::l' => x_unwrap l' ((rep c)::acc)
   end.
-  Obligation 1.
-    simpl in * |- *. firstorder.
+  Obligation 1. (** TODO *)
+  (* Print cstr. *)
+  (* unfold sat in H0. *)
+
+  (** 
+  mod: Mem.t QNum.t -> Prop
+  acc: t
+  H0: forall m : Mem.t QNum.t, mod m -> sat acc m
+  c: cstr mod
+  l': list (cstr mod)
+  m: Mem.t QNum.t
+  H: mod m
+  ---------
+  Cstr.sat c m /\ sat acc m
+  *)
+    firstorder. intuition. 
   Qed.
 
   Program Definition unwrap (l: list (cstr mod)): t :=
@@ -196,7 +210,7 @@ Module CsImpl(Cstr: CstrSig).
 
   End CstrLCFImplem.
 
-  Arguments certCstrLCF [mod].
+  Arguments certCstrLCF {mod}.
   Arguments unwrap [mod].
   Hint Resolve unwrap_correct: pedraQ.
 
@@ -224,6 +238,16 @@ Module CsImpl(Cstr: CstrSig).
   | c::l' => x_wrap l' mod _ ({| rep := c |}::acc)
   end.
   Obligation 1.
+  (** mod: Mem.t QNum.t -> Prop
+c: Cstr.t
+l': list Cstr.t
+H: forall m : Mem.t QNum.t, mod m -> sat (c :: l') m
+acc: list (cstr mod)
+m: Mem.t QNum.t
+H0: mod m
+1/1
+sat l' m
+*)
     simpl in * |- *. firstorder.
   Qed.
   Obligation 2.

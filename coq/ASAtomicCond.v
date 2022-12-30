@@ -19,7 +19,8 @@ Require Export DomainInterfaces.
 Require Import PredTrans.
 Require Import DomainGCL.
 Require Import LinearizeBackend.
-
+Require Import String.
+Require Import Lia.
 
 (* Atomic conditions *)
 Module AtomicCond (N: NumSig) (Import Term: ASTermSig(N)) <: CondSig N.
@@ -153,7 +154,7 @@ Module QAtomicCondAssume (D: BasicDomain QNum)
        (* affine condition ! *)
        affAssume (cmpOp c) aft a
      else
-       failwith NYI "Non-linear terms over Q are not yet supported" (pure a).
+       failwith NYI "Non-linear terms over Q are not yet supported"%string (pure a).
 
   Add Ring QRing: QNum.Ring.
 
@@ -630,7 +631,7 @@ Module ZAtomicCondAssume (D: BasicDomain ZNum)
  
   Lemma eq_zero n1 n2: 0 = n1 + n2 -> n1 = -n2.
   Proof.
-    omega.
+    lia.
   Qed.
 
   Program Definition assumeOpCPS env sic cmp te aft :=

@@ -20,6 +20,8 @@ Require Export ASCond.
 Require Import Debugging.
 Require Export Impure.
 Require DomainFunctors.
+Require Import ArithRing Ring.
+
 Open Scope impure.
 
 Module BasicD <: BasicDomain QNum.
@@ -408,7 +410,7 @@ Module ItvD <: HasGetItvMode QNum QTerm QItv BasicD.
         unfold getItvMode, failwith.
         xasimplify ltac:(eauto with pedraQ vpl); simpl in * |- *.
         intros H0 m X. generalize (QTerm.affineDecompose_correct t m).
-        rewrite H. intros X0; ring_simplify in X0. rewrite <- X0.
+        rewrite H. intros X0. ring_simplify in X0. rewrite <- X0.   
         auto.
      Qed.
 

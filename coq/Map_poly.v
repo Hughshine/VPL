@@ -7,9 +7,11 @@ Require Import CIndex.
 Require Import ASTerm.
 Require Import Qpower.
 Require Import Qop.
-
+Require Import Lia.
 Require Import FMapAVL.
 Require Import ConsSet.
+Require Import String.
+Require Import List.
 
 Module M := FMapAVL.Make(CIndex.NatIndex).
 
@@ -80,7 +82,7 @@ Module MapPoly.
       intro EQ.
       exists n.
       split.
-      omega.
+      lia.
       assert (M.MapsTo (indexi n (length P)) p
         (M.add (indexi n (length P)) (Cstr.to_PExpr (Cs.geti n P d))
            (init_rec n P d))). 
@@ -105,7 +107,7 @@ Module MapPoly.
       intros LT EQ.
       exists i.
       split.
-      omega.
+      lia.
       assumption.
     Qed.
   
@@ -142,7 +144,7 @@ Module MapPoly.
   Definition find_or_1 (i : CIndex.NatIndex.t) (m : t) : PExpr :=
   match M.find i m with
   | Some p => p
-  | _ => failwith CERT "find_or_1: element not found in map" (PEc 1%Q)
+  | _ => failwith CERT "find_or_1: element not found in map"%string (PEc 1%Q)
   end.
 
   Definition cons_rec (l : list CIndex.NatIndex.t) (m : t) : PExpr :=
@@ -390,7 +392,7 @@ Module MapPoly.
       assumption.
       apply compute_varBound_pos ; assumption.
   Qed.
-  
+
   Lemma computeH_app P x l c m: 
   PEsem (computeH P (x :: l) c) m ==
   PEsem (computeH P l c) m * PEsem (computeH P [x] c) m.
@@ -538,13 +540,15 @@ Module Handelman_compute.
     apply MapPoly.lt_0_1.
   Qed.
 
+  Print PExpr_eq.
+  Print witness.
   Definition eq_witness (P : Cs.t) (c:certif) (g:QTerm.t) : QAffTerm.t :=
-  if PExpr_eq (witness P c g) (QPom.toPExpr c.(aff))
+  if Ring_polynom_AddOnQ.PExpr_eq (witness P c g) (QPom.toPExpr c.(aff))
   then let (te,aft) := QTerm.affineDecompose c.(aff) in
     if QTerm.pseudoIsZero te 
     then aft
-    else failwith CERT "eq_witness : aff is not linear" one
-  else failwith CERT "eq_witness : the two polynomials differ" one.
+    else failwith CERT "eq_witness : aff is not linear"%string one
+  else failwith CERT "eq_witness : the two polynomials differ"%string one.
   
   Open Scope Q_scope.
 
@@ -557,11 +561,11 @@ Module Handelman_compute.
     unfold eq_witness.
     remember (witness P c g) as w.
     remember (QPom.toPExpr (aff c)) as aff_pe.
-    assert (EQ_DEC : {PExpr_eq w aff_pe = true} + {PExpr_eq w aff_pe = false}) by (apply PExpr_eq_dec).
+    assert (EQ_DEC : {Ring_polynom_AddOnQ.PExpr_eq w aff_pe = true} + {Ring_polynom_AddOnQ.PExpr_eq w aff_pe = false}) by (apply PExpr_eq_dec).
     destruct EQ_DEC as [EQ | NEQ].
     - assert (QEQ : Qeq (PEsem w (Cs.mem_compat m)) (PEsem aff_pe (Cs.mem_compat m))) 
       by (apply PExpr_eq_correct ; assumption).
-    destruct (PExpr_eq w aff_pe) ; try intuition.
+    destruct (Ring_polynom_AddOnQ.PExpr_eq w aff_pe) ; try intuition.
     assert (POS1 : 0 < PEsem (witness P c g) (Cs.mem_compat m)) 
       by (apply witness_pos_strict ; assumption).
     rewrite <- Heqw in POS1.
@@ -594,7 +598,7 @@ Module Handelman_compute.
     -- apply OneEvalPos_strict.
     -- apply OneEvalPos_strict.
  
-  - destruct (PExpr_eq w aff_pe).
+  - destruct (Ring_polynom_AddOnQ.PExpr_eq w aff_pe).
     -- absurd (true = false) ; intuition ; try assumption.
     -- apply OneEvalPos_strict.
   Qed.
@@ -616,11 +620,11 @@ Module Handelman_compute.
     unfold eq_witness.
     remember (witness P c g) as w.
     remember (QPom.toPExpr (aff c)) as aff_pe.
-    assert (EQ_DEC : {PExpr_eq w aff_pe = true} + {PExpr_eq w aff_pe = false}) by (apply PExpr_eq_dec).
+    assert (EQ_DEC : {Ring_polynom_AddOnQ.PExpr_eq w aff_pe = true} + {Ring_polynom_AddOnQ.PExpr_eq w aff_pe = false}) by (apply PExpr_eq_dec).
     destruct EQ_DEC as [EQ | NEQ].
     - assert (QEQ : Qeq (PEsem w (Cs.mem_compat m)) (PEsem aff_pe (Cs.mem_compat m))) 
       by (apply PExpr_eq_correct ; assumption).
-    destruct (PExpr_eq w aff_pe).
+    destruct (Ring_polynom_AddOnQ.PExpr_eq w aff_pe).
     assert (POS1 : 0 <= PEsem (witness P c g) (Cs.mem_compat m)) by (apply witness_pos ; assumption).
     rewrite <- Heqw in POS1.
     assert (POS2 : 0 <= PEsem aff_pe (Cs.mem_compat m)).
@@ -651,7 +655,7 @@ Module Handelman_compute.
     -- apply OneEvalPos.
     -- apply OneEvalPos. 
  
-    - destruct (PExpr_eq w aff_pe).
+    - destruct (Ring_polynom_AddOnQ.PExpr_eq w aff_pe).
     -- absurd (true = false) ; intuition ; try assumption.
     -- apply OneEvalPos.
   Qed.

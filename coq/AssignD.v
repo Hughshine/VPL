@@ -47,6 +47,8 @@ NB: currently renaming on the underlying domain is encoded through as assume+pro
 Require Import String.
 Require Export ASCond.
 Require Import Debugging.
+Require Import BinPos.
+Require Import String.
 
 Require Import MSets.MSetPositive.
 Require MSetDecide.
@@ -452,7 +454,7 @@ Qed.
 (* Assignements *)
 
   Definition guassignAux x (c:cond) (a: t) : imp t :=
-    let a:=trace DEBUG "guassign called" a in
+    let a:=trace DEBUG "guassign called"%string a in
     BIND tmp <- D.assume c (pol a) -;
     BIND aux <- D.project tmp (encodeE (renaming a) x) -;
     pure  {| pol := aux ; renaming := switch (renaming a) x |}.

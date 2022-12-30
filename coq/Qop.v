@@ -203,11 +203,11 @@ Module QOp.
   Lemma mul_pos_compat (num : Z) (den : positive) : 0 <= num * Zpos den <-> 0 <= num .
   Proof.
     intuition.
-    assert (ZPOS_POS : 0 < Zpos (den)) by intuition.
+    (* assert (ZPOS_POS : 0 < Zpos (den)) by intuition.
     apply (Zmult_le_reg_r _ _(Zpos (den))).
     intuition.
     simpl.
-    intuition.
+    intuition. *)
   Qed.
   Local Close Scope Z_scope.
   
@@ -233,7 +233,7 @@ Module QOp.
     0 < num * Zpos den <-> 0 < num .
   Proof.
     intuition.
-    - assert (ZPOS_POS : 0 < Zpos (den)) by intuition.
+    (* - assert (ZPOS_POS : 0 < Zpos (den)) by intuition.
     apply (Zmult_lt_reg_r _ _(Zpos (den))).
     intuition.
     simpl.
@@ -241,7 +241,7 @@ Module QOp.
     - assert (MUL : 0 * num < Zpos den * num) by (apply Zmult_lt_compat_r ; intuition).
     rewrite Z.mul_0_l in MUL.
     rewrite Z.mul_comm.
-    assumption. 
+    assumption.  *)
   Qed.
 
   Local Close Scope Z_scope.

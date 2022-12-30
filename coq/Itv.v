@@ -1,7 +1,7 @@
 Require String.
 Require Import NumC.
 Require Import DomainInterfaces.
-
+Require Import Lia.
 (*
 Module Type AffItvSig (N: NumSig) <: ItvSig N.
 
@@ -372,7 +372,12 @@ Module ZItv <: ItvSig (ZNum).
   Obligation 2.
    rewrite ZtoQ.Ceil_exact; auto.
    apply ZNumLtLeSucc.
-   rewrite ZtoQ.LtCommutes, <- H.
+   rewrite ZtoQ.LtCommutes.
+   rewrite <- e.
+
+   
+   (* rewrite H. *)
+   (* rewrite <- H. *)
    auto.
   Qed.
   Obligation 3.
@@ -396,7 +401,7 @@ Module ZItv <: ItvSig (ZNum).
   Obligation 2.
    rewrite ZtoQ.Floor_exact; auto.
    apply ZNumLtLePred.
-   rewrite ZtoQ.LtCommutes, <- H.
+   rewrite ZtoQ.LtCommutes, <- e.
    auto.
   Qed.
   Obligation 3.

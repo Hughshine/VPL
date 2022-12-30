@@ -8,6 +8,7 @@ Require Coq.setoid_ring.Cring.
 Require Export Coq.setoid_ring.Ring_polynom.
 Require Export ZArith.
 Require Import Equivalence.
+(* Require Import BinInt.Z. *)
 Require Extraction.
 
 Open Scope Z_scope.
@@ -18,8 +19,10 @@ Open Scope Z_scope.
     ring_theory >-> Ncring.Ring.
 
 *)
-Instance Zops: (@Ncring.Ring_ops Z 0%Z 1%Z Zplus Zmult Zminus Z.opp (@eq Z)).
 
+Notation Zopp := (Z.opp).
+Instance Zops: (@Ncring.Ring_ops Z 0%Z 1%Z Zplus Zmult Zminus Zopp (@eq Z)).
+Defined.
 Instance Qri : (Ncring.Ring (Ro:=Zops)).
 constructor; try Morphisms.solve_proper.
 - exact eq_equivalence.
@@ -203,6 +206,10 @@ Proof.
   - intros; autorewrite with list; auto.
   Grab Existential Variables. apply O.
 Qed.
+
+(* Locate Pmax.
+Print Pmax.
+Print Pos.max. *)
 
 Fixpoint bound (pe:PExpr): positive :=
   match pe with

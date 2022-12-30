@@ -29,7 +29,7 @@ Inductive bndT (C:Type): Type
   | Open: QNum.t -> C -> bndT C
   | Closed: QNum.t -> C -> bndT C.
 
-Arguments Infty [C].
+Arguments Infty {C}.
 Arguments Open [C].
 Arguments Closed [C].
 

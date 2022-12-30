@@ -2,6 +2,7 @@ Require Import Ring_polynom_AddOnQ.
 Require Import NArith.
 Require Import QArith.
 Require Import OrderedType.
+Require Import Lia.
 Local Open Scope list_scope.
 Import List.ListNotations.
 Open Scope nat_scope.
@@ -45,7 +46,7 @@ Module Index (N : Num).
     elim H.
     elim H0.
     intros.
-    omega.
+    lia.
     induction i.
     - elim H.
       elim H0.
@@ -53,7 +54,7 @@ Module Index (N : Num).
       elim (H2 0 d).
       apply H4.
       assumption.
-      omega.
+      lia.
     - intros.
     elim H.
     elim H0.
@@ -61,7 +62,7 @@ Module Index (N : Num).
     elim (H3 (S i) d).
     apply H5.
     assumption.
-    omega.
+    lia.
   Qed.
 
   Lemma eq_refl : forall x : t, eq x x.
@@ -81,7 +82,7 @@ Module Index (N : Num).
     unfold eq in *.
     intros.
     split.
-    - elim H;omega.
+    - elim H;lia.
     - induction i.
       elim H.
       intros.
@@ -110,15 +111,15 @@ Module Index (N : Num).
     - intros. 
       intuition.
       assert (length y = 0) by (apply length_zero_iff_nil; auto).
-      omega.
+      lia.
     - intro H. elim H. clear H.
       intros k AND. clear LT'.
       intuition.
       assert (POS : 0 <= k) by apply le_0_n.
-      assert (0 < length y) by omega.
+      assert (0 < length y) by lia.
       assert (y = []) by auto.
       assert (length y = 0) by (apply length_zero_iff_nil ; assumption).
-      omega.
+      lia.
   Qed.
   
   Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
@@ -134,10 +135,10 @@ Module Index (N : Num).
     elim (LTxy d); elim (LTyz d);intros.
     - left.
       split.
-      omega.
+      lia.
       intros i LEQ.
       cutrewrite (nth i x d = nth i y d).
-      apply H. omega.
+      apply H. lia.
       apply H0. assumption.
     - elim H. clear H.
       intros k LTk.
@@ -145,48 +146,48 @@ Module Index (N : Num).
       elim DEC.
       -- intro LT.
         left.
-        split. omega.
+        split. lia.
         intros i LTi.
         cutrewrite (nth i x d = nth i y d).
-        apply LTk. omega.
-        apply H0. omega.
+        apply LTk. lia.
+        apply H0. lia.
       -- intro LEQ.
         right.
         exists k.
-        split. omega.
-        split. omega.
+        split. lia.
+        split. lia.
         split. 
         + cutrewrite (nth k x d = nth k y d).
           apply LTk.
-          apply H0. omega.
+          apply H0. lia.
         + intros i LEk.
           cutrewrite (nth i x d = nth i y d).
           apply LTk. assumption.
-          apply H0. omega.
+          apply H0. lia.
     - elim H0. clear H0.
       intros k LTk.
       assert (DEC : {length z <= k} + {k < length z}) by apply le_lt_dec.
       elim DEC.
       -- intro LT.
         left.
-        split. omega.
+        split. lia.
         intros i LTi.
         cutrewrite (nth i x d = nth i y d).
-        apply H. omega.
-        apply LTk. omega.
+        apply H. lia.
+        apply LTk. lia.
       -- intro LEQ.
         right.
         exists k.
-        split. omega.
-        split. omega.
+        split. lia.
+        split. lia.
         split. 
         + cutrewrite <- (nth k y d = nth k z d).
           apply LTk.
-          apply H. omega.
+          apply H. lia.
         + intros i LEk.
           cutrewrite <- (nth i y d = nth i z d).
           apply LTk. assumption.
-          apply H. omega.
+          apply H. lia.
     - elim H. clear H.
       intros k2 LTk2.
       elim H0. clear H0.
@@ -197,43 +198,43 @@ Module Index (N : Num).
         elim DEC ; clear DEC.
         --- right. 
           exists k1.
-          split. omega.
-          split. omega.
+          split. lia.
+          split. lia.
           split.
           + cutrewrite <- (nth k1 y d = nth k1 z d).
             apply LTk1. 
             apply LTk2. assumption.
           + intros i LEi. 
             cutrewrite (nth i x d = nth i y d).
-            apply LTk2. omega. 
-            apply LTk1. omega.
+            apply LTk2. lia. 
+            apply LTk1. lia.
         --- intro EQ.
           right.
           exists k1.  
           rewrite EQ in *.
-          split. omega.
-          split. omega.
+          split. lia.
+          split. lia.
           split.
           + apply (N.lt_trans (nth k2 x d) (nth k2 y d)).
             apply LTk1. 
             apply LTk2.
           + intros i LEi. 
             cutrewrite (nth i x d = nth i y d).
-            apply LTk2. omega. 
-            apply LTk1. omega. 
+            apply LTk2. lia. 
+            apply LTk1. lia. 
       -- intro LT.
         right.
         exists k2.
-        split. omega.
-        split. omega.
+        split. lia.
+        split. lia.
         split.
         + cutrewrite (nth k2 x d = nth k2 y d).
           apply LTk2.
-          apply LTk1. omega.
+          apply LTk1. lia.
         + intros i LEi. 
           cutrewrite (nth i x d = nth i y d).
           apply LTk2. assumption.
-          apply LTk1. omega.
+          apply LTk1. lia.
   Qed.
       
   Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
@@ -254,12 +255,12 @@ Module Index (N : Num).
       + intro LEQ.
         assert (EQ : nth (k-1) x N.z = nth (k-1) y N.z).
         apply H.
-        omega.
+        lia.
         assert (~ (nth k x N.z = nth k y N.z)) 
           by (apply N.lt_not_eq;assumption).
       auto.
       + intros.
-        assert (EQ0 : k = 0) by omega.
+        assert (EQ0 : k = 0) by lia.
         rewrite EQ0 in *.
         assert (nth 0 x N.z = nth 0 y N.z) 
           by (apply H2 ; assumption).
@@ -312,7 +313,7 @@ Module Index (N : Num).
     assert (nth (S i) (n :: x) d = nth (S i) (n :: y) d).
     apply H.
     rewrite length_cons.
-    omega.
+    lia.
     rewrite (nth_cons x n d i).
     rewrite (nth_cons y n d i).
     assumption.
@@ -359,7 +360,7 @@ Module Index (N : Num).
       assert (forall d, nth 0 (a :: x1) d = nth 0 (b :: y1) d).
       intro. apply H1.
       simpl.
-      omega.
+      lia.
       simpl in H2.
       contradiction (H2 N.z).
    
@@ -401,7 +402,7 @@ Module Index (N : Num).
     - intro AND. 
       left.
       split.
-      -- simpl. omega.
+      -- simpl. lia.
       -- intros i LT.
         simpl in LT.
         cutrewrite (a :: x = [a] ++ x) ; [ | auto].
@@ -412,34 +413,34 @@ Module Index (N : Num).
           assert(DEC : {1 <= i} + {i < 1}) by apply le_lt_dec.
           elim DEC; clear DEC.
           ++ intros. 
-            rewrite app_nth2 ; [ | omega].
-            rewrite app_nth2 ; [ | omega].
+            rewrite app_nth2 ; [ | lia].
+            rewrite app_nth2 ; [ | lia].
             simpl.
             apply AND.
-            omega. 
+            lia. 
           ++ intros.
-            cutrewrite (i = 0) ; [ | omega].
+            cutrewrite (i = 0) ; [ | lia].
             simpl ; auto.
         + intro LT2.
-          rewrite app_nth1 ; [ | omega].
-          rewrite app_nth1 ; [ | omega].
+          rewrite app_nth1 ; [ | lia].
+          rewrite app_nth1 ; [ | lia].
           simpl in LT2.
-          cutrewrite (i = 0) ; [ | omega].
+          cutrewrite (i = 0) ; [ | lia].
           simpl. auto.
    - intro PROP.
      right.
      elim PROP. clear PROP.
      intros k LT.
      exists (k+1).
-     split. simpl. omega.
-     split. simpl. omega.
+     split. simpl. lia.
+     split. simpl. lia.
      split.
      -- cutrewrite (a :: x = [a] ++ x) ; [ | auto].
        cutrewrite (a :: y = [a] ++ y) ; [ | auto].
-       rewrite app_nth2 ; [ | simpl ; omega].
-       rewrite app_nth2 ; [ | simpl ; omega].
+       rewrite app_nth2 ; [ | simpl ; lia].
+       rewrite app_nth2 ; [ | simpl ; lia].
        simpl.
-       cutrewrite (k + 1 - 1 = k) ; [ | omega].
+       cutrewrite (k + 1 - 1 = k) ; [ | lia].
        apply LT.
     -- intros i LEQ.
       cutrewrite (a :: x = [a] ++ x) ; [ | auto].
@@ -447,13 +448,13 @@ Module Index (N : Num).
       assert(DEC : {1 <= i} + {i < 1}) by apply le_lt_dec.
       elim DEC; clear DEC.
       ++ intros. 
-        rewrite app_nth2 ; [ | simpl ; omega].
-        rewrite app_nth2 ; [ | simpl ; omega].
+        rewrite app_nth2 ; [ | simpl ; lia].
+        rewrite app_nth2 ; [ | simpl ; lia].
         simpl.
         apply LT.
-        omega. 
+        lia. 
       ++ intros.
-        cutrewrite (i = 0) ; [ | omega].
+        cutrewrite (i = 0) ; [ | lia].
         simpl ; auto.
   Qed.
 
@@ -498,7 +499,7 @@ Module Index (N : Num).
     split.
       -- simpl. intuition.
       -- intros i LE. simpl in LE. assert (0 <= i) by apply le_0_n.
-        omega.
+        lia.
   - constructor 3.
     unfold lt.
     intro d.
@@ -506,7 +507,7 @@ Module Index (N : Num).
     split.
       -- simpl. intuition.
       -- intros i LE. simpl in LE. assert (0 <= i) by apply le_0_n.
-        omega.
+        lia.
   - rewrite e. inversion pf_cons'. 
     -- constructor 1.
       apply lt_cons ; assumption.
@@ -565,7 +566,7 @@ Module QcNum <: Num.
     rewrite H in LT.
     unfold Qclt in LT.
     unfold Qlt in LT.
-    omega.
+    lia.
   Qed.
   
   Lemma eq_dec : forall n m : t, {n = m} + {n <> m}.

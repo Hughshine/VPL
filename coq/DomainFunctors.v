@@ -1,6 +1,7 @@
 Require Import String.
 Require Import AssignD.
 Require Import ASAtomicCond.
+Require Import String.
 
 (**************************************************************************)
 (* A generic functor to lift a "low-level" domain into a "high-level" one *)
@@ -146,7 +147,7 @@ Module MakeZ
              BIND qitv <- QItvD.getItvMode mo (QAffTerm.lift aft) a -;
              pure (fromQItv qitv)
         else
-            pure (failwith INTERN "get_itv: non-affine term" ZNItv.top).
+            pure (failwith INTERN "get_itv: non-affine term"%string ZNItv.top).
      Extraction Inline getItvMode.
 
      Lemma getItvMode_correct mo t a:
