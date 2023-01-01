@@ -29,6 +29,11 @@ ocaml/configure
 ocaml/src/Wrapper.ml
 ocaml/_oasis
 test/All_t.native
+*.annot
+*.cmi
+*.cmo
+*.cmx
+*.o
 
 test/*.native
 test/_build/*

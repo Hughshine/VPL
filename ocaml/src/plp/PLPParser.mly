@@ -6,6 +6,20 @@
 %type <PLPBuild.DescPoints.t> points
 %type <PLPBuild.DescSx.t> one_sx
 %type <PLPBuild.DescSlave.t> problem
+%type <Z.t list> basis
+%type <((Q.t list) * ((Q.t * Q.t) list)) list> boundaries
+%type <Q.t list> cons
+%type <(Q.t list) list> cs
+%type <Z.t * (Q.t list) * ((Q.t * Q.t) list)> explorationPoint
+%type <(Z.t * (Q.t list) * ((Q.t * Q.t) list)) list> explorationPoints
+%type <((Q.t list) * ((Q.t * Q.t) list)) list> frontiers
+%type <Q.t> nb
+%type <Z.t list> parameters
+%type <(Q.t * Q.t) list> point
+%type <PLPBuild.DescReg.t> reg
+%type <PLPBuild.DescReg.t> sx
+%type <Z.t list> variables
+%type <int> work_todo
 %%
 problem : PROBLEM EOL reg explorationPoints work_todo EOF {PLPBuild.DescSlave.mk $3 $4 $5}
 ;

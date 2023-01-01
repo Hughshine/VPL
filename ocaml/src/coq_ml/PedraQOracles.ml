@@ -3,7 +3,7 @@
 (* see PedraQBackend.v                   *)
 (*                                       *)
 (*****************************************)
-
+(* open QArith_base *)
 
 module Nb = Scalar.Rat
 module Var = Var.Positive
@@ -22,7 +22,7 @@ let coqPosToZ: BinNums.positive -> Nb.Z.t
 let zToCoqPos: Nb.Z.t -> BinNums.positive
 = fun z0 ->
 	if Nb.Z.cmp Nb.Z.z z0 >= 0 then
-		invalid_arg "Support.zToCoqPos"
+		invalid_arg "Suppo+rt.zToCoqPos"
 	else
 		let rec f (z: Nb.Z.t): BinNums.positive =
 			if Nb.Z.cmp z Nb.Z.u = 0 then
@@ -51,8 +51,8 @@ let zToCoqZ: Nb.Z.t -> BinNums.coq_Z
 
 let nToNb: NumC.QNum.t -> Nb.t
 = fun q ->
-	let num = coqZToZ (QArith_base.coq_Qnum q) in
-	let den = coqPosToZ (QArith_base.coq_Qden q) in
+	let num = coqZToZ (q.coq_Qnum) in
+	let den = coqPosToZ (q.coq_Qden) in
 	Nb.ofZ num den
 
 let nToNumC: Nb.t -> NumC.QNum.t
