@@ -2,32 +2,32 @@
 open Vpl
 open Splx
 
-let x = V.fromInt 1
-let y = V.fromInt 2
-let z = V.fromInt 3
-let t = V.fromInt 4
+let x = Var.fromInt 1
+let y = Var.fromInt 2
+let z = Var.fromInt 3
+let t = Var.fromInt 4
 
-let nxt = V.fromInt 5
+let nxt = Var.fromInt 5
 
-let varPr: V.t -> string
+let varPr: Var.t -> string
 = fun x ->
 	let vars = [x, "x"; y, "y"; z, "z"; t, "t"] in
 	try
 		List.assoc x vars
 	with
-	| Not_found -> "v" ^ (V.to_string x)
+	| Not_found -> "v" ^ (Var.to_string x)
 
 let mkc t v c =
-	Cs.mk t (List.map (fun (c, v) -> (Scalar.Rat.mk1 c, v)) v) (Scalar.Rat.mk1 c)
+	Cs.mk t (List.map (fun (c, v) -> (Scalar.Rat.of_int c, v)) v) (Scalar.Rat.of_int c)
 
 let sxLift : Splx.t Splx.mayUnsatT -> Splx.t
 = function
 	| Splx.IsOk sx -> sx
-	| Splx.IsUnsat _ -> Pervasives.invalid_arg "Opt_t.sxLift"
+	| Splx.IsUnsat _ -> Stdlib.invalid_arg "Opt_t.sxLift"
 
-let eq = mkc Cstr.Eq
-let le = mkc Cstr.Le
-let lt = mkc Cstr.Lt
+let eq = mkc Cstr_type.Eq
+let le = mkc Cstr_type.Le
+let lt = mkc Cstr_type.Lt
 
 let eqProgress b1 b2 =
 	match b1, b2 with
@@ -47,7 +47,7 @@ let eqNext n1 n2 =
 	| Opt.OptUnbnd, Opt.OptFinite _
 	| Opt.OptFinite _, Opt.OptUnbnd
 	| Opt.OptFinite _, Opt.GoOn _ -> false
-			
+
 (* XXX: does not handle the tableau part of the Finite and Sup constructors *)
 let eqOpt o1 o2 =
 	match o1, o2 with
@@ -94,33 +94,33 @@ let chkInv s0 =
 	chkMat s0 && chkBnds s0
 
 (* Opt.setObj *)
-let setObjTs: T.testT
-=
+let setObjTs: Test.t
+= fun () ->
 	let chkVar (t, obj, s) = fun state ->
 		let (oVar, s1) = Opt.setObj (sxLift s) obj in
 		match Rtree.get None (Splx.get_mat s1) oVar with
-		| None -> T.fail t "no constraint associated with z" state
+		| None -> Test.fail t "no constraint associated with z" state
 		| Some cons -> (* This is a light check. *)
 			if Scalar.Rat.cmp (Vec.get cons oVar) Scalar.Rat.u = 0 then
-				T.succeed state
+				Test.succeed state
 			else
-				T.fail t "not equal" state
+				Test.fail t "not equal" state
 	in
 	let chkInv (t, obj, s) = fun state ->
 		let (_, s1) = Opt.setObj (sxLift s) obj in
 		if chkInv s1 then
-			T.succeed state
+			Test.succeed state
 		else
 			let msg = Printf.sprintf "invariant\n%s" (Splx.pr varPr s1) in
-			T.fail t msg state
+			Test.fail t msg state
 	in
 	let chkBnd (t, obj, s) = fun state ->
 		let (oVar, s1) = Opt.setObj (sxLift s) obj in
 		let oSt = Rtree.get {Splx.v = Scalar.Symbolic.z; Splx.low = None; Splx.up = None} (Splx.get_state s1) oVar in
 		if (Splx.get_low oSt) = None && (Splx.get_up oSt) = None then
-			T.succeed state
+			Test.succeed state
 		else
-			T.fail t "bad bounds" state
+			Test.fail t "bad bounds" state
 	in
 	let tcs = [
 		"nil0", Vec.nil, Splx.mk nxt [];
@@ -132,32 +132,32 @@ let setObjTs: T.testT
 			0, eq [1, y] 3;
 			1, le [-1, x] (1) ]
 	] in
-	T.suite "setObj" [
-		T.suite "var" (List.map chkVar tcs);
-		T.suite "invariant" (List.map chkInv tcs);
-		T.suite "bnd" (List.map chkBnd tcs)
+	Test.suite "setObj" [
+		Test.suite "var" (List.map chkVar tcs);
+		Test.suite "invariant" (List.map chkInv tcs);
+		Test.suite "bnd" (List.map chkBnd tcs)
 	]
 
 (* Opt.pickNBasic *)
-let pickNBasicTs: T.testT
-=
+let pickNBasicTs: Test.t
+= fun () ->
 	let chk (t, a, (o, s)) = fun state ->
 		let isMoveEq (v1, d1, b1) (v2, d2, b2) = eqProgress b1 b2 && v1 = v2 && d1 = d2 in
 		match Opt.pickNBasic o s with
 		| Opt.Done ->
 			if a = None then
-				T.succeed state
+				Test.succeed state
 			else
-				T.fail t "not equal to None" state
+				Test.fail t "not equal to None" state
 		| Opt.Move (v, d, b) as r ->
 			let msg = Printf.sprintf "pickNBasic found %s" (Opt.prAction varPr r) in
 			match a with
-			| None -> T.fail t msg state
+			| None -> Test.fail t msg state
 			| Some aL ->
 				if List.exists (isMoveEq (v, d, b)) aL then
-					T.succeed state
+					Test.succeed state
 				else
-					T.fail t msg state
+					Test.fail t msg state
 	in
 	let tcs = [
 		"nilV0", None, Opt.setObj (sxLift (Splx.mk nxt []))
@@ -185,7 +185,7 @@ let pickNBasicTs: T.testT
 			(Vec.mk [Scalar.Rat.negU, x; Scalar.Rat.u, y]);
 
 		"bnd0", Some [
-				x, Opt.Incr, Opt.UpTo (Scalar.Symbolic.ofRat (Scalar.Rat.mk1 2))
+				x, Opt.Incr, Opt.UpTo (Scalar.Symbolic.ofQ (Scalar.Rat.of_int 2))
 			], Opt.setObj (sxLift (Splx.mk nxt [
 				0, le [1, x] 2 ]))
 			(Vec.mk [Scalar.Rat.u, x]);
@@ -210,7 +210,7 @@ let pickNBasicTs: T.testT
 			(Vec.mk [Scalar.Rat.u, x; Scalar.Rat.u, y]);
 
 		"notFirst1", Some [
-				y, Opt.Incr, Opt.UpTo (Scalar.Symbolic.ofRat (Scalar.Rat.mk1 2))
+				y, Opt.Incr, Opt.UpTo (Scalar.Symbolic.ofQ (Scalar.Rat.of_int 2))
 			], Opt.setObj (sxLift (Splx.mk nxt [
 				0, eq [1, x] 0;
 				1, le [1, y] 2 ]))
@@ -221,38 +221,38 @@ let pickNBasicTs: T.testT
 				1, le [1, y] (-1) ]))
 			(Vec.mk [Scalar.Rat.u, x; Scalar.Rat.u, y])
 	] in
-	T.suite "pickNBasic" (List.map chk tcs)
+	Test.suite "pickNBasic" (List.map chk tcs)
 
 (* Opt.pickBasic *)
-let pickBasicTs: T.testT
-=
+let pickBasicTs: Test.t
+= fun () ->
 	let chkV (t, xN, inBnd, dir, xB, _, (_, s)) = fun state ->
 		let (xB1, _) = Opt.pickBasic s xN inBnd dir in
 		if xB = xB1 then
-			T.succeed state
+			Test.succeed state
 		else
-			T.fail t (varPr xB1) state
+			Test.fail t (varPr xB1) state
 	in
 	let chkP (t, xN, inBnd, dir, _, xNBnd, (_, s)) = fun state ->
 		let (_, xNBnd1) = Opt.pickBasic s xN inBnd dir in
 		if eqProgress xNBnd xNBnd1 then
-			T.succeed state
+			Test.succeed state
 		else
-			T.fail t (Opt.prProgress xNBnd1) state
+			Test.fail t (Opt.prProgress xNBnd1) state
 	in
 	let sx1 = nxt in
-	let sx2 = V.next sx1 in
+	let sx2 = Var.next sx1 in
 	let tcs = [
 		"nil0", x, Opt.Unbnd, Opt.Incr, x, Opt.Unbnd,
 			Opt.setObj (sxLift (Splx.mk nxt []))
 			(Vec.mk [Scalar.Rat.u, x]);
 
-		"up0", x, Opt.Unbnd, Opt.Decr, sx1, Opt.UpTo (Scalar.Symbolic.ofRat (Scalar.Rat.mk1 3)),
+		"up0", x, Opt.Unbnd, Opt.Decr, sx1, Opt.UpTo (Scalar.Symbolic.ofQ (Scalar.Rat.of_int 3)),
 			Opt.setObj (sxLift (Splx.mk nxt [
 				0, le [-1, x; 1, y] 3 ]))
 			(Vec.mk [Scalar.Rat.u, x]);
 
-		"up1", x, Opt.Unbnd, Opt.Decr, sx1, Opt.UpTo (Scalar.Symbolic.ofRat (Scalar.Rat.mk1 2)),
+		"up1", x, Opt.Unbnd, Opt.Decr, sx1, Opt.UpTo (Scalar.Symbolic.ofQ (Scalar.Rat.of_int 2)),
 			Opt.setObj (sxLift (Splx.mk nxt [
 				0, le [-2, x; 1, y] 4 ]))
 			(Vec.mk [Scalar.Rat.u, x]);
@@ -263,146 +263,149 @@ let pickBasicTs: T.testT
 				1, le [-1, x; 1, z] 0 ]))
 			(Vec.mk [Scalar.Rat.u, x]);
 
-		"nbasic0", x, Opt.UpTo (Scalar.Symbolic.ofRat (Scalar.Rat.mk1 1)), Opt.Decr,
-			x, Opt.UpTo (Scalar.Symbolic.ofRat (Scalar.Rat.mk1 1)),
+		"nbasic0", x, Opt.UpTo (Scalar.Symbolic.ofQ (Scalar.Rat.of_int 1)), Opt.Decr,
+			x, Opt.UpTo (Scalar.Symbolic.ofQ (Scalar.Rat.of_int 1)),
 			Opt.setObj (sxLift (Splx.mk nxt [
 				0, le [-2, x; 1, y] 4 ]))
 			(Vec.mk [Scalar.Rat.u, x])
 	] in
-	T.suite "pickBasic" [
-		T.suite "var" (List.map chkV tcs);
-		T.suite "progress" (List.map chkP tcs)
+	Test.suite "pickBasic" [
+		Test.suite "var" (List.map chkV tcs);
+		Test.suite "progress" (List.map chkP tcs)
 	]
 
 (* Opt.step *)
-let stepEndTs: T.testT
-=
+let stepEndTs: Test.t
+= fun () ->
 	let chk (t, next, (z, s)) = fun state ->
 		let next1 = Opt.step z s in
 		match next with
-		| Opt.GoOn _ -> T.fail t "bad test case" state
+		| Opt.GoOn _ -> Test.fail t "bad test case" state
 		| _ ->
 			if eqNext next next1 then
-				T.succeed state
+				Test.succeed state
 			else
-				T.fail t (Opt.prNext varPr next1) state
+				Test.fail t (Opt.prNext varPr next1) state
 	in
 	let tcs = [
 		"nil0", Opt.OptUnbnd, Opt.setObj (sxLift (Splx.mk nxt []))
 			(Vec.mk [Scalar.Rat.u, x]);
 
-		"u0", Opt.OptFinite (Scalar.Symbolic.ofRat (Scalar.Rat.mk1 (-2))),
+		"u0", Opt.OptFinite (Scalar.Symbolic.ofQ (Scalar.Rat.of_int (-2))),
 			Opt.setObj (sxLift (Splx.mk nxt [
 				0, le [-1, x] (-2) ]))
 			(Vec.mk [Scalar.Rat.negU, x])
 	] in
-	T.suite "end" (List.map chk tcs)
+	Test.suite "end" (List.map chk tcs)
 
-let stepGoOnTs: T.testT
-=
+let stepGoOnTs: Test.t
+= fun () ->
 	let chkInv (t, _, (z, s)) = fun state ->
 		match Opt.step z s with
 		| Opt.OptFinite _
-		| Opt.OptUnbnd as r -> T.fail t (Opt.prNext varPr r) state
+		| Opt.OptUnbnd as r -> Test.fail t (Opt.prNext varPr r) state
 		| Opt.GoOn s1 ->
 			if chkInv s1 then
-				T.succeed state
+				Test.succeed state
 			else
 				let msg = Printf.sprintf "broken invariant\n%s\n" (Splx.pr varPr s1) in
-				T.fail t msg state
+				Test.fail t msg state
 	in
 	let chkObj (t, zV, (z, s)) = fun state ->
 		match Opt.step z s with
 		| Opt.OptFinite _
-		| Opt.OptUnbnd as r -> T.fail t (Opt.prNext varPr r) state
+		| Opt.OptUnbnd as r -> Test.fail t (Opt.prNext varPr r) state
 		| Opt.GoOn s1 ->
 			let zV1 =
 				let zSt = Rtree.get {Splx.v = Scalar.Symbolic.z; Splx.low = None; Splx.up = None} (Splx.get_state s1) z in
 				Splx.get_v zSt
 			in
 			if Scalar.Symbolic.cmp zV zV1 = 0 then
-				T.succeed state
+				Test.succeed state
 			else
-				T.fail t (Scalar.Symbolic.to_string zV1) state
+				Test.fail t (Scalar.Symbolic.to_string zV1) state
 	in
 	let tcs = [
-		"own0", Scalar.Symbolic.ofRat (Scalar.Rat.mk1 2), Opt.setObj (sxLift (Splx.mk nxt [
+		"own0", Scalar.Symbolic.ofQ (Scalar.Rat.of_int 2), Opt.setObj (sxLift (Splx.mk nxt [
 				0, le [1, x] 2 ]))
 			(Vec.mk [Scalar.Rat.u, x]);
 
-		"other0", Scalar.Symbolic.ofRat (Scalar.Rat.mk1 2), Opt.setObj
+		"other0", Scalar.Symbolic.ofQ (Scalar.Rat.of_int 2), Opt.setObj
 			(sxLift (Splx.mk nxt [ 0, le [1, x; 1, y] 2 ]))
 			(Vec.mk [Scalar.Rat.u, x])
 	] in
-	T.suite "goOn" [
-		T.suite "inv" (List.map chkInv tcs);
-		T.suite "obj" (List.map chkObj tcs)
+	Test.suite "goOn" [
+		Test.suite "inv" (List.map chkInv tcs);
+		Test.suite "obj" (List.map chkObj tcs)
 	]
 
-let stepTs: T.testT
-= T.suite "step" [stepEndTs; stepGoOnTs]
+let stepTs: Test.t
+= fun () ->
+Test.suite "step" [stepEndTs(); stepGoOnTs()]
 
 (* Opt.max *)
-let maxTs: T.testT
-=
+let maxTs: Test.t
+= fun () ->
 	let chk (t, v, obj, s) = fun state ->
 		match Opt.max' s obj with
-		| Splx.IsUnsat _ -> T.fail t "unsat" state
+		| Splx.IsUnsat _ -> Test.fail t "unsat" state
 		| Splx.IsOk opt ->
 			if eqOpt v opt
-			then T.succeed state
-			else T.fail t (Opt.prOpt opt) state
+			then Test.succeed state
+			else Test.fail t (Opt.prOpt opt) state
 	in
 	(* XXX: should do without dummySx *)
 	let tcs
 	  = let dummySx
-	      = match Splx.mk V.XH [] with
-	      | Splx.IsUnsat _ -> Pervasives.failwith "Opt_t.maxTs"
+	      = match Splx.mk Var.XH [] with
+	      | Splx.IsUnsat _ -> Stdlib.failwith "Opt_t.maxTs"
 	      | Splx.IsOk sx -> sx
 	    in
 	    [
 		"nil0", Opt.Finite (dummySx, Scalar.Rat.z, []), Vec.mk [], Splx.mk nxt [];
 		"nil1", Opt.Infty, Vec.mk [Scalar.Rat.u, x], Splx.mk nxt [];
-		"own0", Opt.Finite (dummySx, Scalar.Rat.mk1 2, [0, Scalar.Rat.u]), Vec.mk [Scalar.Rat.u, x], Splx.mk nxt [
+		"own0", Opt.Finite (dummySx, Scalar.Rat.of_int 2, [0, Scalar.Rat.u]), Vec.mk [Scalar.Rat.u, x], Splx.mk nxt [
 			0, le [1, x] 2 ];
 
-		"ownSup0", Opt.Sup (dummySx, Scalar.Rat.mk1 2, [0, Scalar.Rat.u]),
+		"ownSup0", Opt.Sup (dummySx, Scalar.Rat.of_int 2, [0, Scalar.Rat.u]),
 			Vec.mk [Scalar.Rat.u, x], Splx.mk nxt [
 				0, lt [1, x] 2 ];
 
-		"comb1", Opt.Finite (dummySx, Scalar.Rat.mk1 2, [0, Scalar.Rat.u; 1, Scalar.Rat.u]),
+		"comb1", Opt.Finite (dummySx, Scalar.Rat.of_int 2, [0, Scalar.Rat.u; 1, Scalar.Rat.u]),
 			Vec.mk [Scalar.Rat.u, x], Splx.mk nxt [
 				0, le [1, x; 1, y] 2;
 				1, le [-1, y] 0 ];
 
-		"comb2", Opt.Sup (dummySx, Scalar.Rat.mk1 2, [0, Scalar.Rat.u; 1, Scalar.Rat.u]),
+		"comb2", Opt.Sup (dummySx, Scalar.Rat.of_int 2, [0, Scalar.Rat.u; 1, Scalar.Rat.u]),
 			Vec.mk [Scalar.Rat.u, x], Splx.mk nxt [
 				0, le [1, x; 1, y] 2;
 				1, lt [-1, y] 0 ];
 
-		"m0", Opt.Finite (dummySx, Scalar.Rat.mk1 6, [0, Scalar.Rat.mk 2 1; 1, Scalar.Rat.mk 2 1]),
+		"m0", Opt.Finite (dummySx, Scalar.Rat.of_int 6, [0, Scalar.Rat.mk 2 1; 1, Scalar.Rat.mk 2 1]),
 			Vec.mk [Scalar.Rat.u, x], Splx.mk nxt [
 				0, le [-1, y] 4;
 				1, le [2, x; 1, y] 8;
 				2, le [1, x; 1, y] 3 ];
 
-		"red0", Opt.Finite (dummySx, Scalar.Rat.mk1 4, [0, Scalar.Rat.u; 1, Scalar.Rat.u]),
+		"red0", Opt.Finite (dummySx, Scalar.Rat.of_int 4, [0, Scalar.Rat.u; 1, Scalar.Rat.u]),
 			Vec.mk [Scalar.Rat.u, x; Scalar.Rat.u, y], Splx.mk nxt [
 				0, le [1, x] 2;
 				1, le [1, y] 2;
 				2, le [1, x; 1, y] 5 ];
 
 		"distant_nxt0", Opt.Infty, Vec.mk [Scalar.Rat.negU, x],
-			Splx.mk (V.XI (V.XO (V.XO V.XH))) [
+			Splx.mk (Var.XI (Var.XO (Var.XO Var.XH))) [
 				1, Cs.eq [Scalar.Rat.u, x; Scalar.Rat.u, y; Scalar.Rat.negU, z] Scalar.Rat.z;
 				2, Cs.eq [Scalar.Rat.u, y; Scalar.Rat.negU, t] Scalar.Rat.negU;
 				3, Cs.le [Scalar.Rat.negU, z] Scalar.Rat.u;
 				4, Cs.le [Scalar.Rat.negU, z; Scalar.Rat.negU, t] Scalar.Rat.negU]
 	] in
-	T.suite "max" (List.map chk tcs)
+	Test.suite "max" (List.map chk tcs)
 (*
-let getAsgTs : T.testT
+let getAsgTs : Test.t
 	= let check : string * (Cs
 *)
-let ts: T.testT
-= T.suite "Opt" [setObjTs; pickNBasicTs; pickBasicTs; stepTs; maxTs]
+let ts: Test.t
+    = fun () ->
+    List.map Test.run [setObjTs; pickNBasicTs; pickBasicTs; stepTs; maxTs]
+    |> Test.suite "Opt"

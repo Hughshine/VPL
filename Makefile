@@ -1,55 +1,55 @@
+# Defining default program for html
+ifeq ($(OS),Windows_NT)
+    OPEN := start
+else
+    UNAME := $(shell uname -s)
+    ifeq ($(UNAME),Linux)
+        OPEN := xdg-open
+	else
+		OPEN := open
+	endif
+endif
+
+BUILD = _build/default
+
 all: vpl
 
-vpl: setup
-	$(MAKE) -C ocaml/
+vpl:
+	dune build
 
-setup:
-	cd ocaml; cp -f _oasis_no_glpk _oasis; cp -f src/Wrapper_no_glpk.ml src/Wrapper.ml; oasis setup
+doc:
+	dune build @doc
 
-vpl_glpk: setup_glpk
-	$(MAKE) -C ocaml/
-
-setup_glpk:
-	cd ocaml; cp -f _oasis_glpk _oasis; cp -f src/Wrapper_glpk.ml src/Wrapper.ml; oasis setup
+open_doc:
+	$(OPEN) $(BUILD)/_doc/_html/index.html
 
 clean:
-	$(MAKE) -C ocaml/ clean
-	$(MAKE) -C test/ clean
-	rm -f ocaml/setup.data ocaml/setup.log
+	dune clean
 
-to_opam:
-	cd ocaml
-	oasis2opam --local
-
-allclean: clean coq_clean test_clean oasis_clean
-
-install:
-	$(MAKE) -C ocaml/ install
+install: vpl
+	dune build @install
+	dune install
 
 uninstall:
-	ocamlfind remove vpl
+	dune build @install
+	dune uninstall
 
-check:
-	$(MAKE) -C test/ check
-
-test_clean:
-	$(MAKE) -C test/ clean
-
-oasis_clean:
-	$(RM) -f ocaml/Makefile ocaml/configure ocaml/_tags ocaml/myocamlbuild.ml ocaml/setup.ml ocaml/setup.data ocaml/setup.log
-	$(RM) -f ocaml/src/META ocaml/src/*lib ocaml/src/*pack
+check: vpl
+	./_build/default/test/run_tests.exe
 
 # extract Coq files into the expected  ocaml/ subdir.
 coq_update:
-	$(MAKE) -j -C coq/ OPT:="-opt" DemoExtract.vo
+	$(MAKE) -j$(PROCMAX) -C coq/ OPT:="-opt" DemoExtract.vo
 
 coq_extract:
 	$(MAKE) -C coq/ cleanextract
-	$(MAKE) -j -C coq/ OPT:="-opt" DemoExtract.vo
+	$(MAKE) -j$(PROCMAX) -C coq/ OPT:="-opt" DemoExtract.vo
+	# Fixing a problem in extraction
+	sed -i 's/let skip =/let skip : cdac =/g' ocaml/extracted/DomainGCL.ml
 
 # targets for opam installation.
 coq_build:
-	$(MAKE) -j -C coq/ OPT:="-opt" build
+	$(MAKE) -j$(PROCMAX) -C coq/ OPT:="-opt" build
 
 coq_install:
 	$(MAKE) -C coq/ install
@@ -60,4 +60,4 @@ coq_uninstall:
 coq_clean:
 	$(MAKE) -C coq clean
 
-.PHONY: all vpl clean allclean install uninstall check coq_update coq_extract coq_build coq_install coq_uninstall coq_clean test_clean
+.PHONY: all vpl clean install uninstall doc open_doc check coq_update coq_extract coq_build coq_install coq_uninstall coq_clean

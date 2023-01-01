@@ -4,6 +4,8 @@
   Authors: Alexandre Maréchal et Sylvain Boulmé.
  *)
 
+
+Require Import String.
 Require Import NumC.
 Require Import Debugging.
 Require Import Itv.
@@ -47,7 +49,6 @@ Proof.
   unfold sat; simpl; intuition. 
 Qed.
 Hint Resolve top_correct: zn.
-
 
 (** Import from Alexis's datatype *)
 Program Definition fromBndT (b: ZItv.bndT): ZN.t :=

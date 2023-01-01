@@ -238,7 +238,7 @@ Module QOp.
     intuition.
     simpl.
     intuition.
-    - assert (MUL : 0 * num < ' den * num) by (apply Zmult_lt_compat_r ; intuition).
+    - assert (MUL : 0 * num < Zpos den * num) by (apply Zmult_lt_compat_r ; intuition).
     rewrite Z.mul_0_l in MUL.
     rewrite Z.mul_comm.
     assumption.  *)

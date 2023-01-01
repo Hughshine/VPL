@@ -1,4 +1,4 @@
-# VPL (Verified Polyhedra Library) version 0.2.1
+# VPL (Verified Polyhedra Library)
 
 ## GENERAL INFORMATIONS
 
@@ -13,82 +13,58 @@ If you find a bug or have any comment, feel free to contact us at verimag-polyhe
 ## INSTALLATION
 
 1. __From [opam](https://opam.ocaml.org/)__
-	
-    1. External Dependencies
-	
-        * [glpk](https://www.gnu.org/software/glpk/)
-            __required version >= 4.61__
 
-        * [eigen](http://eigen.tuxfamily.org/)
-           (automatically installed by depexts on debian or ubuntu)
-           _debian package libeigen3-dev_
-           __tested with version 3.3.3__
+    First, add the following repository in your opam system:
 
-    2. Installation
-  
-        First, add the following repository in your opam system:
+        opam repo add vpl https://raw.githubusercontent.com/VERIMAG-Polyhedra/opam-vpl/master
 
-            opam repo add vpl http://www-verimag.imag.fr/~boulme/opam-vpl
+    Then, install the following packages (depending on your needs):
 
-        Then, install the following packages (depending on your needs):
+    * `vpl-core`: the ocaml library
 
-        * `vpl-core`: the ocaml library
+      ```
+      opam install vpl-core
+      ```
 
-          ```
-                opam install vpl-core
-          ```
+    * `coq-vpl`: the Coq library (only needed to get Coq proofs about VPL operators)
 
-        * `coq-vpl`: the Coq library (only needed to get Coq proofs about VPL operators)
+      ```
+      opam install coq-vpl
+      ```
 
-          ```
-	       opam install coq-vpl
-          ```
+    * `coq-vpltactic`: the [VplTactic](https://github.com/VERIMAG-Polyhedra/VplTactic) plugin for Coq (also install `coq-vpl` and `vpl-core`)
 
-        * `coq-vpltactic`: the [VplTactic](https://github.com/VERIMAG-Polyhedra/VplTactic) plugin for Coq (also install `coq-vpl` and `vpl-core`)
-
-          ```
- 	       opam install coq-vpltactic
-          ```
-          
-      In case of trouble with this `opam` install, you should read [this](https://github.com/VERIMAG-Polyhedra/opam-vpl/blob/master/README.md#using-the-vpl-on-a-vagrantvirtualbox-virtual-machine).
+      ```
+      opam install coq-vpltactic
+      ```
 
 2. __From sources__
 
-    1. Dependencies
+    1. _Dependencies_
 
-       The VPL requires the following packages:
-	
-       * [ocaml](http://caml.inria.fr/ocaml/index.en.html)
-          __required version >= 4.02.3__
-	
-       * [zarith](https://forge.ocamlcore.org/projects/zarith)
-          _available in OPAM_
-          __tested with version 1.4.1__
-          
-       * [glpk](https://www.gnu.org/software/glpk/)
-          __required version >= 4.61__
+        The VPL requires the following packages:
 
-       * [eigen](http://eigen.tuxfamily.org/)
-          _debian package libeigen3-dev_
-          __tested with version 3.3.3__
-	
-       * [coq](https://coq.inria.fr/)
-          (mandatory only if you want to re-extract files from Coq)
-          _available in OPAM_
-          __required version 8.7__ (use coq-vpl.0.2 for coq 8.6)
+        * [ocaml](http://caml.inria.fr/ocaml/index.en.html)
+        __required version >= 4.08.0__
 
-          __NB__ the `ocaml/src/extracted/` directory already contains extracted files from Coq.
+        * [zarith](https://forge.ocamlcore.org/projects/zarith)
+        _available in OPAM_
+        __tested with version 1.4.1 and 1.9.1__
 
-    2. Compiling the VPL
+        * [dune](https://dune.readthedocs.io/en/stable/)
+        _available in OPAM_
+        __required version >= 2.1__
+
+    2. _Compiling the VPL_
 
        (Optional) To re-extract from the coq files, simply run at the root directory
 
             make coq_extract
 
        To compile the VPL, simply run from the root directory
-	
+
             make vpl
-	
+
        Tests can be run by typing
 
             make check
@@ -96,19 +72,48 @@ If you find a bug or have any comment, feel free to contact us at verimag-polyhe
        Finally, to install the library with ocamlfind, type
 
             make install
-	
+
        To uninstall the library from ocamlfind, run
 
             make uninstall
 
+## Documentation
+Documentation can be built from sources with
+
+    make doc; make open_doc
+
+It contains the interface of main modules.
 
 ## Using the VPL
 
 There are several ways to use the library.
 
-* As an Ocaml library (opam package `vpl-core`),
-the entry point is then the module UserInterface
+1. From Coq
+(see opam package `coq-vpl`)
 
-* From Coq (opam package `coq-vpl`)
+2. As a Coq tactic
+(see [VplTactic](https://github.com/VERIMAG-Polyhedra/VplTactic))
 
-* As a Coq tactic (see [VplTactic](https://github.com/VERIMAG-Polyhedra/VplTactic))
+3. As an OCaml library
+(see opam package `vpl-core`)
+
+As an OCaml library, the entry point of the VPL is the module UserInterface, which contains several version of the abstract domain.
+Polyhedral domains can work over Q or Z, and there are three levels of certification, which gives 6 possible domains.
+The level of certifications are:
+
+* _No certification_: no certificate is produced. This is implemented in modules _UncertifiedZ_ and _UncertifiedQ_.
+
+* _OCaml certification_: Each operator of the domain produces a _certificate_, ie a witness of its computation that can be checked. This is implemented in modules _OCamlCertifiedZ_ and _OCamlCertifiedQ_.  
+
+3. As an OCaml library
+(see opam package `vpl-core`)
+
+* _Coq certification_: In addition to guarantees offered by OCaml certification, certificates are here extracted from Coq proven types. This is implemented in modules _CoqCertifiedZ_ and _CoqCertifiedQ_.  
+
+## Documentation
+
+1. Online: [link](https://amarechal.gitlab.io/home/projects/vpl/vpl-core/)
+
+2. From sources: `make doc`
+
+The html documentation is then generated in the folder `_build/_doc/_html/index.html`

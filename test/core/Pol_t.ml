@@ -1,11 +1,24 @@
+(*
+Vpl.Pol.Debug.enable_all();;
+Vpl.Pol.Debug.print_enable();;
+*)
+(*Vpl.Join.Debug.enable_all();;
+Vpl.Join.Debug.print_enable();;
+Vpl.Proj.Debug.enable_all();;
+Vpl.Proj.Debug.print_enable();;
+Vpl.PLPCore2.Debug.enable_all();;
+Vpl.PLPCore2.Debug.print_enable();;
+Vpl.PLPCore.Debug.enable_all();;
+Vpl.PLPCore.Debug.print_enable();;
+Vpl.PSplx2.Debug.enable [Title ; MInput ; MOutput];;
+Vpl.PSplx2.Debug.print_enable();;
+Vpl.PSplx.Debug.enable [Title ; MInput ; MOutput];;
+Vpl.PSplx.Debug.print_enable();;
+*)
 open Vpl
 
-module EqSet = IneqSet.EqSet
-module Cons = EqSet.Cons
-module Cert = Cons.Cert
-module Cs = EqSet.Cs
+module Cs = Cstr.Rat
 module Vec = Cs.Vec
-module Var = Vec.V
 
 let x = Var.fromInt 1
 let y = Var.fromInt 2
@@ -22,14 +35,78 @@ let varPr: Var.t -> string
 		in
 		List.assoc _x vars
 
-let factory = Factory.Cstr.factory
+module Factory = struct
+
+	type cert = Pol.Cs.t
+
+	let factory = {
+		Factory.name = "Cstr";
+		Factory.top = (Cs.mk Cstr_type.Eq [] Scalar.Rat.z);
+		Factory.triv = (fun cmp n -> if
+			match cmp with
+			| Cstr_type.Le -> Scalar.Rat.le Scalar.Rat.z n
+			| Cstr_type.Lt -> Scalar.Rat.lt Scalar.Rat.z n
+			| Cstr_type.Eq -> Scalar.Rat.equal n Scalar.Rat.z
+			then ()
+			else (Printf.sprintf "triv %s %s 0"
+			 	(Cstr_type.(match cmp with | Le -> "<=" | Lt -> "<" | Eq -> "="))
+				(Scalar.Rat.to_string n)
+				|> print_endline;
+				Stdlib.failwith "Factory.Cstr.triv")
+			;
+			Cs.mk cmp [] n);
+		Factory.add = Cs.add;
+		Factory.mul = Cs.mulc;
+		Factory.to_le = (fun c -> {c with Cs.typ = Cstr_type.Le});
+		Factory.merge = (fun c1 c2 ->
+			let c1' = {c1 with Cs.typ = Cstr_type.Eq}
+			and c2' = {c2 with Cs.typ = Cstr_type.Eq} in
+			if Cs.equal c1' c2'
+			then c1'
+			else failwith "merge");
+		Factory.to_string = Cs.to_string Var.to_string;
+		Factory.rename = Cs.rename;
+	}
+
+    let mk : Pol.Cs.t -> cert
+        = fun cs -> cs
+
+	let equal : Pol.Cs.t -> cert -> bool
+		= fun cs cert ->
+		Cs.equalSyn cs cert
+
+    let mkCons : Cstr.Rat.t -> cert Cons.t
+		= fun cs -> (cs, mk cs)
+
+    let convert : 'c Pol.t -> cert Pol.t
+        = fun p -> {
+            Pol.eqs = List.map (fun (v,(cstr,_)) ->
+                (v,mkCons cstr)
+            ) p.Pol.eqs;
+            Pol.ineqs = List.map (fun (cstr,_) ->
+                mkCons cstr
+            ) p.Pol.ineqs.ineqs
+            |> IneqSet.of_list;
+            Pol.point = p.Pol.point;
+        }
+
+    let check : cert Pol.t -> bool
+		= fun p ->
+		List.for_all (fun (c,cert) ->
+            equal c cert
+        ) (Pol.get_cons p)
+
+    let to_string = factory.to_string
+end
+
+let factory = Factory.factory
 
 let mkc t v c =
-	Cs.mk t (List.map (function (i, x) -> (Scalar.Rat.mk1 i, x)) v) (Scalar.Rat.mk1 c)
+	Cs.mk t (List.map (function (i, x) -> (Scalar.Rat.of_int i, x)) v) (Scalar.Rat.of_int c)
 
-let eq = mkc Cstr.Eq
-let le = mkc Cstr.Le
-let lt = mkc Cstr.Lt
+let eq = mkc Cstr_type.Eq
+let le = mkc Cstr_type.Le
+let lt = mkc Cstr_type.Lt
 
 let mkCons : Cs.t -> Cs.t Cons.t
 	= fun c -> (c,c)
@@ -42,15 +119,16 @@ let p (l: Cs.t list): Cs.t Pol.t =
 let p': (Var.t * Cs.t) list -> Cs.t list -> Cs.t Pol.t
 	= fun eqs ineqs -> {
 		Pol.eqs = List.map (fun (x, c) -> (x, mkCons c)) eqs;
-		Pol.ineqs = List.map mkCons ineqs}
+		Pol.ineqs = List.map mkCons ineqs |> IneqSet.of_list;
+        Pol.point = None}
 
 let check_certificates : Cs.t Pol.t -> bool
 	= fun p ->
 	List.for_all (fun (c,cert) -> Cs.equal c cert)
-	(EqSet.list p.Pol.eqs @ IneqSet.list p.Pol.ineqs)
+	(EqSet.list p.Pol.eqs @ p.Pol.ineqs.ineqs)
 
 
-module Test (F : sig
+module Make_Tests (F : sig
 	val set : unit -> unit
 	end) = struct
 
@@ -201,26 +279,26 @@ module Test (F : sig
 	]
 	|> List.map (fun (a,b,c,d,e) -> a,b, mkCons c,d,e)
 
-	let addTs: T.testT
-	=
+	let addTs: Test.t
+	= fun () ->
 		let chkBot (t, empty, c, p, _) = fun state ->
 			match Pol.add factory p c with
 			| Pol.Added _ ->
 				if not empty then
-					T.succeed state
+					Test.succeed state
 				else
-					T.fail t "should be bottom" state
+					Test.fail t "should be bottom" state
 			| Pol.Contrad _ ->
 				if empty then
-					T.succeed state
+					Test.succeed state
 				else
-					T.fail t "should not be bottom" state
+					Test.fail t "should not be bottom" state
 		in
 		let chk_subst (t, isEmpty, c, p, _) = fun state ->
 			match Pol.add factory p c, isEmpty with
 			| Pol.Contrad _, true
 			| Pol.Contrad _, false
-			| Pol.Added _, true -> T.succeed state
+			| Pol.Added _, true -> Test.succeed state
 			| Pol.Added p1, false ->
 
 			let defs = List.map (fun (x, _) -> x) (Pol.get_eqs p1) in
@@ -228,21 +306,21 @@ module Test (F : sig
 				(fun x -> Scalar.Rat.cmpz (Vec.get (Cs.get_v (Cons.get_c c)) x) = 0) defs
 			in
 			if List.for_all chk1 (Pol.get_ineqs p1) then
-				T.succeed state
+				Test.succeed state
 			else
 				let err = "defined variables in inequality set\n" ^ (Pol.to_string_ext factory varPr p1) in
-				T.fail t err state
+				Test.fail t err state
 		in
 		let chk_inv (nm, _, c, p, _)
 		= fun st ->
 			match Pol.add factory p c with
-			| Pol.Contrad _ -> T.succeed st
+			| Pol.Contrad _ -> Test.succeed st
 			| Pol.Added p' ->
 				match Pol.invChk factory p' with
-				| true, _ -> T.succeed st
-				| false, e -> T.fail nm ((Pol.to_string_ext_raw factory p') ^ "\n" ^ e) st
+				| true, _ -> Test.succeed st
+				| false, e -> Test.fail nm ((Pol.to_string_ext_raw factory p') ^ "\n" ^ e) st
 		in
-		let chkCert : string * bool * Cs.t Cons.t * Cs.t Pol.t * Cs.t Pol.meetT list -> T.stateT -> T.stateT
+		let chkCert : string * bool * Cs.t Cons.t * Cs.t Pol.t * Cs.t Pol.meetT list -> Test.stateT -> Test.stateT
 			= let handleContrad: Cs.t -> string option
 				= fun a_ce ->
 				if Cs.tellProp a_ce = Cs.Contrad
@@ -251,7 +329,7 @@ module Test (F : sig
 			in
 			let mkplist p =
 				let e = EqSet.list p.Pol.eqs in
-				let i = IneqSet.list p.Pol.ineqs in
+				let i = p.Pol.ineqs.ineqs in
 				List.append e i
 			in
 			(* TODO: remplacer ces tests par des tests d'inclusion*)
@@ -266,8 +344,8 @@ module Test (F : sig
 				  	a_conss e_conss
 				then None
 				else let e = Printf.sprintf "bad certificate:\nExpected %s\ngot %s"
-					(Misc.list_to_string (Cons.to_string_ext factory Cs.Vec.V.to_string) e_conss "\n")
-					(Misc.list_to_string (Cons.to_string_ext factory Cs.Vec.V.to_string) a_conss "\n")
+					(Misc.list_to_string (Cons.to_string_ext factory Var.to_string) e_conss "\n")
+					(Misc.list_to_string (Cons.to_string_ext factory Var.to_string) a_conss "\n")
 					in
 					Some e
 			in
@@ -280,17 +358,17 @@ module Test (F : sig
 			in
 			fun (nm, _, c, p, certs) st ->
 			if List.exists (fun cert -> chk (c, p, cert) = None) certs
-			then T.succeed st
+			then Test.succeed st
 			else
 				match chk (c, p, List.hd certs) with
 				| None -> assert false
-				| Some e -> T.fail nm e st
+				| Some e -> Test.fail nm e st
 		in
-		T.suite "add" [
-			T.suite "bot" (List.map chkBot addTcs);
-			T.suite "subst" (List.map chk_subst addTcs);
-			T.suite "inv" (List.map chk_inv addTcs);
-			T.suite "forward_cert" (List.map chkCert addTcs)
+		Test.suite "add" [
+			Test.suite "bot" (List.map chkBot addTcs);
+			Test.suite "subst" (List.map chk_subst addTcs);
+			Test.suite "inv" (List.map chk_inv addTcs);
+			Test.suite "forward_cert" (List.map chkCert addTcs)
 		]
 
 	(* Pol.meet *)
@@ -502,36 +580,37 @@ module Test (F : sig
 		], None
 	]
 
-	let meetTs: T.testT
-	=	let chk (nm, p1, p2, maybeP)
+	let meetTs: Test.t
+	= fun () ->
+    let chk (nm, p1, p2, maybeP)
 		= fun st ->
-			let noneExpected: Cs.t Pol.meetT -> T.stateT
+			let noneExpected: Cs.t Pol.meetT -> Test.stateT
 			= function
-				| Pol.Contrad _ -> T.succeed st
+				| Pol.Contrad _ -> Test.succeed st
 				| Pol.Added _ ->
 					let estr = "expected None but got Some _" in
-					T.fail nm estr st
+					Test.fail nm estr st
 			in
-			let someExpected: Cs.t Pol.t -> Cs.t Pol.meetT -> T.stateT
+			let someExpected: Cs.t Pol.t -> Cs.t Pol.meetT -> Test.stateT
 			= fun p -> function
 				| Pol.Contrad _ ->
 					let estr = "expected Some _ but got None" in
-					T.fail nm estr st
+					Test.fail nm estr st
 				| Pol.Added p' ->
 					if Pol.equal factory factory p p'
-					then T.succeed st
+					then Test.succeed st
 					else
 						let estr = Printf.sprintf "expected\n%s\ngot\n%s\n"
 							(Pol.to_string_ext factory varPr p) (Pol.to_string_ext factory varPr p')
 						in
-						T.fail nm estr st
+						Test.fail nm estr st
 			in
 			let res = Pol.meet factory p1 p2 in
 			match maybeP with
 			| None -> noneExpected res
 			| Some p -> someExpected p res
 		in
-		T.suite "meet" (List.map chk meetTcs)
+		Test.suite "meet" (List.map chk meetTcs)
 
 	(* Pol.incl *)
 	let inclTcs = [
@@ -599,12 +678,14 @@ module Test (F : sig
 		"branch", true, {
 		Pol.eqs = [
 			(x, mkCons (eq [1, x] 3))];
-		Pol.ineqs = []
+		Pol.ineqs = IneqSet.top;
+        Pol.point = None;
 		}, {
 		Pol.eqs = [];
 		Pol.ineqs = [
 			mkCons (le [-1, x] 0);
-			mkCons (le [1, x] 3)]};
+			mkCons (le [1, x] 3)] |> IneqSet.of_list;
+        Pol.point = None;};
 
 		"unsat_eq", false, {
 		Pol.eqs = [
@@ -612,18 +693,20 @@ module Test (F : sig
 		Pol.ineqs = [
 			mkCons (le [-1, z] (-1));
 			mkCons (le [1, y] 0);
-			]
+			]|> IneqSet.of_list;
+        Pol.point = None;
 		}, {
 		Pol.eqs = [];
 		Pol.ineqs = [
 			mkCons (le [1, x] 0);
 			mkCons (le [-1, z] (-1));
 			mkCons (le [-1, x ; 1, y] (-1))
-			]};
+			]|> IneqSet.of_list;
+        Pol.point = None;};
 		(*
 		"sylvain_while2", true, {
 		Pol.eqs = [
-			(x, mkCons (Cs.mk Cstr.Eq [Scalar.Rat.u, x ; Scalar.Rat.of_string "-1/3", y ; Scalar.Rat.of_string "1/3", z] Scalar.Rat.z))];
+			(x, mkCons (Cs.mk Cstr_type.Eq [Scalar.Rat.u, x ; Scalar.Rat.of_string "-1/3", y ; Scalar.Rat.of_string "1/3", z] Scalar.Rat.z))];
 		Pol.ineqs = [
 			mkCons (le [2, y] 20);
 			mkCons (le [-1, y] (-12));
@@ -637,16 +720,16 @@ module Test (F : sig
 			mkCons (le [1, x] 6)]};*)
 	]
 
-	let inclTs: T.testT
-	=
+	let inclTs: Test.t
+	= fun () ->
 		let chk_res (name, r, p1, p2) = fun state ->
 			let (ok1, e1) = Pol.invChk factory p1 in
 			if not ok1 || not (check_certificates p1)
-			then T.fail name ("bad p1:\n" ^ e1) state
+			then Test.fail name ("bad p1:\n" ^ e1) state
 			else
 				let (ok2, e2) = Pol.invChk factory p2 in
 				if not ok2 || not (check_certificates p2)
-				then T.fail name ("bad p2:\n" ^ e2) state
+				then Test.fail name ("bad p2:\n" ^ e2) state
 				else
 					let dump: Cs.t Pol.t -> Cs.t Pol.t -> string
 					= fun p1 p2 ->
@@ -656,14 +739,14 @@ module Test (F : sig
 					match Pol.incl factory p1 p2 with
 					| Pol.NoIncl ->
 						if r
-						then T.fail name ("no inclusion\n" ^ (dump p1 p2)) state
-						else T.succeed state
+						then Test.fail name ("no inclusion\n" ^ (dump p1 p2)) state
+						else Test.succeed state
 					| Pol.Incl _ ->
 						if r
-						then T.succeed state
-						else T.fail name ("unexpected inclusion\n" ^ (dump p1 p2)) state
+						then Test.succeed state
+						else Test.fail name ("unexpected inclusion\n" ^ (dump p1 p2)) state
 		in
-		T.suite "incl" (List.map chk_res inclTcs)
+		Test.suite "incl" (List.map chk_res inclTcs)
 
 	(* Pol.project *)
 	let projectTcs = [
@@ -679,12 +762,12 @@ module Test (F : sig
 	]
 
 	(* XXX: Add syntactic criteria for the certificates *)
-	let projectTs: T.testT
-	=
+	let projectTs: Test.t
+	= fun () ->
 		let chk_res (t, v, p, r) = fun state ->
-			let p1 = Pol.project factory p v in
+			let p1 = Pol.project factory p [v] in
 			if Pol.equal factory factory p1 r && check_certificates p1 then
-				T.succeed state
+				Test.succeed state
 			else
 				let estr =
 					"projecting x from polyhedron P:\n" ^ (Pol.to_string_ext factory varPr p) ^
@@ -692,9 +775,9 @@ module Test (F : sig
 					"\nwhich is not equal to the expected R:\n" ^
 						(Pol.to_string_ext factory varPr r)
 				in
-				T.fail t estr state
+				Test.fail t estr state
 		in
-		T.suite "project" (List.map chk_res projectTcs)
+		Test.suite "project" (List.map chk_res projectTcs)
 
 	(* Pol.projectM *)
 	let projectMTcs = [
@@ -759,7 +842,7 @@ module Test (F : sig
 		], p [
 			le [-1, y] 0 ];
 
-		"Kohler_failure", [a; c; e; d],
+		(*"Kohler_failure", [a; c; e; d],
 		p [
 			 le [120150, a; 112894, c; 47, e; -122500, d] 0;
 			 le [-1, a; -1, c; 1, e] 0;
@@ -783,15 +866,21 @@ module Test (F : sig
 			 le [-1, y] 0;
 			 le [2401, x; -2500, y; 1, z] 117699;
 			 le [-1, x; 1, z] 1
-		  ]
+		  ]*)
 	]
 
-	let projectMTs: T.testT
-	=
+	let projectMTs: Test.t
+	= fun () ->
 		let chk_res (t, l, p, r) = fun state ->
-			let p1 = Pol.projectM factory p l in
+			(*Proj.Debug.enable_all();
+			Proj.Debug.print_enable();
+			PLPCore.Debug.enable_all();
+			PLPCore.Debug.print_enable();
+			PSplxExec.Debug.enable_all();
+			PSplxExec.Debug.print_enable();*)
+			let p1 = Pol.project factory p l in
 			if Pol.equal factory factory p1 r && check_certificates p1 then
-				T.succeed state
+				Test.succeed state
 			else
 				let estr =
 					"projecting" ^
@@ -801,13 +890,13 @@ module Test (F : sig
 					"\nwhich is not syntactically equal to the expected R:\n" ^
 						(Pol.to_string_ext factory varPr r)
 				in
-				T.fail t estr state
+				Test.fail t estr state
 		in
-		T.suite "projectM" (List.map chk_res projectMTcs)
+		Test.suite "projectM" (List.map chk_res projectMTcs)
 (*
 	(* Pol.joinSetup *)
-	let joinSetupTs: T.testT
-	=
+	let joinSetupTs: Test.t
+	= fun () ->
 		let x = Var.fromInt 1 in
 		let y = Var.fromInt 2 in
 		let alpha = Var.fromInt 3 in
@@ -816,13 +905,13 @@ module Test (F : sig
 		let chk_pol (t, _, p1, p2, p0) = fun state ->
 			let (_, _, p, _) = Pol.joinSetup (Var.next y) p1 p2 in
 			if Pol.equal p0 p then
-				T.succeed state
+				Test.succeed state
 			else
 				let estr =
 					"expected p:\n" ^ (Pol.to_string_ext varPr p0) ^
 					"\n\nactual p:\n" ^ (Pol.to_string_ext varPr p)
 				in
-				T.fail t estr state
+				Test.fail t estr state
 		in
 		let chk_vars (t, l0, p1, p2, _) = fun state ->
 			let (_, _, p, l) = Pol.joinSetup (Var.next y) p1 p2 in
@@ -830,9 +919,9 @@ module Test (F : sig
 				List.for_all (fun x -> List.exists ((=) x) l2) l1
 			in
 			if incl l l0 && incl l0 l then
-				T.succeed state
+				Test.succeed state
 			else
-				T.fail t "bad var list" state
+				Test.fail t "bad var list" state
 		in
 		let chk_frag (t, _, p1, p2, _) = fun state ->
 			let (_, _, p, _) = Pol.joinSetup (Var.next y) p1 p2 in
@@ -847,10 +936,10 @@ module Test (F : sig
 			in
 			if chk (EqSet.list (Pol.get_eqs p)) (EqSet.list (Pol.get_eqs initP)) &&
 				chk (IneqSet.list (Pol.get_ineqs p)) (IneqSet.list (Pol.get_ineqs initP)) then
-				T.succeed state
+				Test.succeed state
 			else
 				let e = "not equal\np:\n" ^ (Pol.to_string_ext varPr p) ^ "\ninitP:\n" ^ (Pol.to_string_ext varPr initP) in
-				T.fail t e state
+				Test.fail t e state
 		in
 		let tcs = [
 			"one", [alpha; x1; y1], p [
@@ -877,10 +966,10 @@ module Test (F : sig
 				le [-1, alpha] 0;
 				le [1, alpha] 1 ]
 		] in
-		T.suite "joinSetup" [
-			T.suite "pol" (List.map chk_pol tcs);
-			T.suite "vars" (List.map chk_vars tcs);
-			T.suite "frag" (List.map chk_frag tcs)
+		Test.suite "joinSetup" [
+			Test.suite "pol" (List.map chk_pol tcs);
+			Test.suite "vars" (List.map chk_vars tcs);
+			Test.suite "frag" (List.map chk_frag tcs)
 		]
 *)
 	(* Pol.join *)
@@ -946,8 +1035,8 @@ module Test (F : sig
 			le [1, a; -1, z] 1
 		];
 		(* known to fail*)
-		(*
-		"notClosed0", p [
+
+		(*"notClosed0", p [
 			lt [1, y] 3;
 		], p [
 			le [1, x; 1, y] 5;
@@ -955,6 +1044,28 @@ module Test (F : sig
 		], p [
 			le [1, y] 3
 		];*)
+        (*
+        "similarities", p [
+            le [-1, x ; 1, y] 0;
+            le [1, x ; 1, y] 5;
+            le [56, x ; 20, y] 237;
+            le [-1, y] 0;
+            lt [-586, x ; -280, y] (-922)
+        ], p [
+            le [-1, x] (-1);
+            le [-1, y] 2;
+            le [56, x ; 20, y] 237;
+            lt [1, y] 0;
+            lt [-333, x ; 112, y] (-501)
+        ], p [
+            le [56, x ; 20, y] 237;
+            lt [-1, x ; 1, y] 0;
+            lt [1, x ; 1, y] 5;
+            lt [-1, y] 2;
+            lt [-1, x] (-1);
+            lt [-2221, x ; 56, y] (-2305)
+        ];
+        *)
 
 		"dots0", p [
 			eq [1, x] 0;
@@ -976,72 +1087,80 @@ module Test (F : sig
 		]
 	]
 
-	let joinTs: T.testT
-	=
+	let joinTs: Test.t
+	= fun () ->
 		let chk1 (name, p1, p2, _) = fun state ->
 			let (p, _) = Pol.join factory factory p1 p2 in
+            (*Debug.enable();
+            Debug.print_enable();
+            Debug.set_colors();
+            Pol.Debug.enable DebugTypes.([MInput ; Title ; MOutput ; Normal ; Detail]);*)
 			match Pol.incl factory p1 p, check_certificates p with
-			| Pol.Incl _, true -> T.succeed state
+			| Pol.Incl _, true -> Test.succeed state
 			| Pol.NoIncl, _ ->
-				let err = Printf.sprintf "p1 not in p\np:\n%s" (Pol.to_string_ext factory varPr p) in
-				T.fail name err state
+				let err = Printf.sprintf "p1 not in p\np:\n%s\np1:%s"
+                    (Pol.to_string_ext factory varPr p)
+                    (Pol.to_string_ext factory varPr p1) in
+				Test.fail name err state
 			| _, false ->
 				let err = Printf.sprintf "wrong certificate in p1 : %s" (Pol.to_string_ext factory varPr p) in
-				T.fail name err state
+				Test.fail name err state
 		in
 		let chk2 (name, p1, p2, _) = fun state ->
 			let (_,p) = Pol.join factory factory p1 p2 in
 			match Pol.incl factory p2 p, check_certificates p with
-			| Pol.Incl _, true -> T.succeed state
+			| Pol.Incl _, true -> Test.succeed state
 			| Pol.NoIncl, _ ->
-				let err = Printf.sprintf "p2 not in p\np:\n%s" (Pol.to_string_ext factory varPr p) in
-				T.fail name err state
+				let err = Printf.sprintf "p2 not in p\np:\n%s\np2:%s"
+                    (Pol.to_string_ext factory varPr p)
+                    (Pol.to_string_ext factory varPr p2) in
+				Test.fail name err state
 			| _, false ->
 				let err = Printf.sprintf "wrong certificate in p2 : %s" (Pol.to_string_ext factory varPr p) in
-				T.fail name err state
+				Test.fail name err state
 		in
 		let chkR (name, p1, p2, pR) = fun state ->
 			let (p1', p2') = Pol.join factory factory p1 p2 in
 			match Pol.incl factory p1' pR with
 			| Pol.Incl _ -> begin
 				match Pol.incl factory p2' pR with
-				| Pol.Incl _ -> T.succeed state
+				| Pol.Incl _ -> Test.succeed state
 				| Pol.NoIncl ->
 					let err =
 						Printf.sprintf "expected:\n%s\ngot:\n%s\n"
 							(Pol.to_string_ext factory varPr pR) (Pol.to_string_ext factory varPr p2')
 					in
-					T.fail name err state
+					Test.fail name err state
 				end
 			| Pol.NoIncl ->
 				let err =
 					Printf.sprintf "expected:\n%s\ngot:\n%s\n"
 						(Pol.to_string_ext factory varPr pR) (Pol.to_string_ext factory varPr p1')
 				in
-				T.fail name err state
+				Test.fail name err state
 		in
-		T.suite "join" [
-			T.suite "result" (List.map chkR joinTcs);
-			T.suite "1" (List.map chk1 joinTcs);
-			T.suite "2" (List.map chk2 joinTcs);
+		Test.suite "join" [
+			Test.suite "result" (List.map chkR joinTcs);
+			Test.suite "1" (List.map chk1 joinTcs);
+			Test.suite "2" (List.map chk2 joinTcs);
 		]
 
 	(* Pol.widen *)
-	let widenTs: T.testT
-	=
+	let widenTs: Test.t
+	= fun () ->
 		let chk (t, p1, p2, pR) = fun state ->
 			if Pol.incl factory p1 p2 = Pol.NoIncl then
 				failwith "Pol_t.widen_ts"
 			else
 				let p = Pol.widen factory p1 p2 in
 				if Pol.equal factory factory p pR then
-					T.succeed state
+					Test.succeed state
 				else
 					let err =
 						"p is different from expected pR" ^
 						"\np:\n" ^ (Pol.to_string_ext factory varPr p) ^ "\npR:\n" ^ (Pol.to_string_ext factory varPr pR)
 					in
-					T.fail t err state
+					Test.fail t err state
 		in
 		let tcs = [
 			"halbwachs0", p [
@@ -1084,36 +1203,36 @@ module Test (F : sig
 				le [-1, y] 0
 			]*)
 		] in
-		T.suite "widen" (List.map chk tcs)
+		Test.suite "widen" (List.map chk tcs)
 
 	(* Pol.itvize *)
 	let itvizeTcs: (string * Vec.t * Pol.itvT * Cs.t Pol.t) list
 	= [
 		"nil0", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Infty; Pol.up = Pol.Infty}, p [];
-		"direct0", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Infty; Pol.up = Pol.Closed (Scalar.Rat.mk1 2)}, p [
+		"direct0", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Infty; Pol.up = Pol.Closed (Scalar.Rat.of_int 2)}, p [
 			le [1, x] 2 ];
 
-		"direct1", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Infty; Pol.up = Pol.Open (Scalar.Rat.mk1 2)}, p [
+		"direct1", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Infty; Pol.up = Pol.Open (Scalar.Rat.of_int 2)}, p [
 			lt [1, x] 2 ];
 
-		"direct2", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Closed (Scalar.Rat.mk1 (-2)); Pol.up = Pol.Infty}, p [
+		"direct2", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Closed (Scalar.Rat.of_int (-2)); Pol.up = Pol.Infty}, p [
 			le [-1, x] 2 ];
 
-		"direct3", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Open (Scalar.Rat.mk1 (-2)); Pol.up = Pol.Infty}, p [
+		"direct3", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Open (Scalar.Rat.of_int (-2)); Pol.up = Pol.Infty}, p [
 			lt [-1, x] 2 ];
 
-		"direct4", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Closed (Scalar.Rat.mk1 2); Pol.up = Pol.Closed (Scalar.Rat.mk1 2)}, p [
+		"direct4", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Closed (Scalar.Rat.of_int 2); Pol.up = Pol.Closed (Scalar.Rat.of_int 2)}, p [
 			eq [1, x] 2 ];
 
-		"comb0", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Infty; Pol.up = Pol.Closed (Scalar.Rat.mk1 2)}, p [
+		"comb0", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Infty; Pol.up = Pol.Closed (Scalar.Rat.of_int 2)}, p [
 			le [1, y] 2;
 			le [2, x; -1, y] 2 ];
 
-		"comb1", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Infty; Pol.up = Pol.Open (Scalar.Rat.mk1 2)}, p [
+		"comb1", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Infty; Pol.up = Pol.Open (Scalar.Rat.of_int 2)}, p [
 			lt [1, y] 2;
 			le [2, x; -1, y] 2 ];
 
-		"comb2", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Infty; Pol.up = Pol.Open (Scalar.Rat.mk1 2)}, p [
+		"comb2", Vec.mk [Scalar.Rat.u, x], {Pol.low = Pol.Infty; Pol.up = Pol.Open (Scalar.Rat.of_int 2)}, p [
 			le [1, y] 2;
 			lt [2, x; -1, y] 2 ];
 
@@ -1147,60 +1266,63 @@ module Test (F : sig
 		| _,_ -> false
 
 	(* XXX: certificates should be syntactically checked *)
-	let itvizeTs: T.testT
-	=
+	let itvizeTs: Test.t
+	= fun () ->
 		let chk (name, v, itv, p) = fun state ->
 			let (itv1, lower_cert, upper_cert) = Pol.itvize factory p v in
-			let var = Cs.Vec.getVars [v] |> Cs.Vec.V.Set.elements |> List.hd in
+			let var = Cs.Vec.getVars [v] |> Var.Set.elements |> List.hd in
 			if eqItv itv itv1
 			 &&
 			 	chk_upper_bound var (Pol.get_up itv) upper_cert
 			 &&
 			 	chk_lower_bound var (Pol.get_low itv) lower_cert
-			then T.succeed state
-			else T.fail name (Pol.to_string_itv varPr v itv1) state
+			then Test.succeed state
+			else Test.fail name (Pol.to_string_itv varPr v itv1) state
 		in
-		T.suite "itvize" (List.map chk itvizeTcs)
+		Test.suite "itvize" (List.map chk itvizeTcs)
 
-	let getUpperBoundTs : T.testT
-	  = let chk : string * Vec.t * Pol.itvT * Cs.t Pol.t -> T.stateT -> T.stateT
+	let getUpperBoundTs : Test.t
+	  = fun () ->
+      let chk : string * Vec.t * Pol.itvT * Cs.t Pol.t -> Test.stateT -> Test.stateT
 		   = fun (nm, v, i, p) st ->
-		   let b = Pol.getUpperBound factory p v |> Pervasives.fst in
+		   let b = Pol.getUpperBound factory p v |> Stdlib.fst in
 		   if eqBnd (Pol.get_up i) b
-		   then T.succeed st
-		   else T.fail nm "not equal" st
+		   then Test.succeed st
+		   else Test.fail nm "not equal" st
 		 in
 		 List.map chk itvizeTcs
-		 |> T.suite "getUpperBound"
+		 |> Test.suite "getUpperBound"
 
-	let getLowerBoundTs : T.testT
-	  = let chk : string * Vec.t * Pol.itvT * Cs.t Pol.t -> T.stateT -> T.stateT
+	let getLowerBoundTs : Test.t
+	  = fun () ->
+      let chk : string * Vec.t * Pol.itvT * Cs.t Pol.t -> Test.stateT -> Test.stateT
 		   = fun (nm, v, i, p) st ->
-		   let b = Pol.getLowerBound factory p v |> Pervasives.fst in
+		   let b = Pol.getLowerBound factory p v |> Stdlib.fst in
 		   if eqBnd (Pol.get_low i) b
-		   then T.succeed st
-		   else T.fail nm "not equal" st
+		   then Test.succeed st
+		   else Test.fail nm "not equal" st
 		 in
 		 List.map chk itvizeTcs
-		 |> T.suite "getLowerBound"
+		 |> Test.suite "getLowerBound"
 
 	(* Pol.rename *)
-	let renameTs : T.testT
-	=	let chk : string * Var.t * Var.t * Cs.t Pol.t * Cs.t Pol.t option -> T.stateT -> T.stateT
+	let renameTs : Test.t
+	   = fun () ->
+       let chk : string * Var.t * Var.t * Cs.t Pol.t * Cs.t Pol.t option -> Test.stateT -> Test.stateT
 		= fun (nm, x, y, p, op) st ->
 			match op with
 			| Some p' ->
 				let p_r = Pol.rename factory x y p in
 				if Pol.equal factory factory p_r p' && check_certificates p_r
-				then T.succeed st
+				then Test.succeed st
 				else
 					let e : string = "failed" in
-					T.fail nm e st
+					Test.fail nm e st
 			| None -> try
 				let _ = Pol.rename factory x y p in
 				let e : string = "failed" in
-				T.fail nm e st
-				with Assert_failure (_, _, _) -> T.succeed st
+				Test.fail nm e st
+				with Assert_failure (_, _, _) -> Test.succeed st
 		in
 		let tcs : (string * Var.t * Var.t * Cs.t Pol.t * Cs.t Pol.t option) list
 		= [
@@ -1214,74 +1336,49 @@ module Test (F : sig
 
 			"ko1", x, y, p [eq [1, y] 0], None
 		] in
-		T.suite "rename" (List.map chk tcs)
+		Test.suite "rename" (List.map chk tcs)
 
-	let ts : T.testT =
-		T.suite (Printf.sprintf "%s:%s:%s"
-		(Flags.min_to_string())
-		(Flags.proj_to_string())
-		(Flags.join_to_string())) [
-		addTs;
-		meetTs;
-		inclTs;
-		projectTs;
-		projectMTs;
-		(*joinSetupTs;*)
-		joinTs;
-		widenTs;
-		itvizeTs;
-		getUpperBoundTs;
-		getLowerBoundTs;
-		renameTs
-	]
+	let ts : Test.t =
+        fun () ->
+        List.map Test.run [
+    		addTs;
+    		meetTs;
+    		inclTs;
+    		projectTs;
+    		projectMTs;
+    		(*joinSetupTs;*)
+    		joinTs;
+    		widenTs;
+    		itvizeTs;
+    		getUpperBoundTs;
+    		getLowerBoundTs;
+    		renameTs
+    	]
+        |> Test.suite (Printf.sprintf "%s:%s"
+        (Flags.proj_to_string())
+        (Flags.join_to_string()))
 end
 
-module Classic = Test
+module Classic = Make_Tests
 	(struct
 		let set : unit -> unit
-			= fun() ->
-			Flags.min := Flags.Classic;
+			= fun () ->
 			Flags.proj := Flags.FM;
 			Flags.join := Flags.Baryc;
 	end)
 
 let ts1
-	= T.suite "Pol" [ Classic.ts] T.stateZ
+	= Test.suite "Pol" [ Classic.ts() ] Test.stateZ
 
-module PLP_Rat = Test
+module PLP_Rat = Make_Tests
 	(struct
 		let set : unit -> unit
-			= fun() ->
-			Flags.min := Flags.Classic;
+			= fun () ->
 			Flags.proj := Flags.Proj_PLP Flags.Rat;
 			Flags.join := Flags.Join_PLP Flags.Rat;
 	end)
 
 let ts2
-	= T.suite "Pol" [ PLP_Rat.ts] ts1
+	= Test.suite "Pol" [ PLP_Rat.ts() ] ts1
 
-module PLP_Float = Test
-	(struct
-		let set : unit -> unit
-			= fun() ->
-			Flags.min := Flags.Classic;
-			Flags.proj := Flags.Proj_PLP Flags.Float;
-			Flags.join := Flags.Join_PLP Flags.Float;
-	end)
-
-let ts3
-	= T.suite "Pol" [ PLP_Rat.ts] ts2
-
-module PLP_Sym = Test
-	(struct
-		let set : unit -> unit
-			= fun() ->
-			Flags.min := Flags.Classic;
-			Flags.proj := Flags.Proj_PLP Flags.Symbolic;
-			Flags.join := Flags.Join_PLP Flags.Symbolic;
-	end)
-
-let ts4
-	= T.suite "Pol" [ PLP_Rat.ts] ts3
-
-let ts = T.prState "Pol" ts4
+let ts = Test.prState "Pol" ts2

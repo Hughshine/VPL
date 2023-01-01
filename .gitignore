@@ -34,7 +34,7 @@ test/All_t.native
 *.cmo
 *.cmx
 *.o
+_build/*
+**/.merlin
 
-test/*.native
-test/_build/*
 test/coq_extracted/*
