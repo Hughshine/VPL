@@ -13,16 +13,32 @@
 %type <PolyParserBuild.poly> one_poly
 %type <PolyParserBuild.stmt list> one_stmt_list
 %type <string list> one_var_list
-%type <(Var.t list * Q.t) list> one_prefixed_poly
+%type <(Var.Positive.t list * Q.t) list> one_prefixed_poly
+%type <string * PolyParserBuild.poly> assign
+%type <(string * PolyParserBuild.poly) list> assign_list
+%type <PolyParserBuild.poly * Cstr.cmpT_extended * PolyParserBuild.poly> contrainte
+%type <(PolyParserBuild.poly * Cstr.cmpT_extended * PolyParserBuild.poly) list> contrainte_list
+%type <(string * int) list * Q.t> element
+%type <int> exposant
+%type <(string * int) list * Q.t> monome
+%type <Q.t> nb
+%type <string * Q.t> nbVar
+%type <PolyParserBuild.poly> polynomial
+%type <Var.Positive.t list * Q.t> prefixed_element
+%type <Var.Positive.t list * Q.t> prefixed_monomial
+%type <(Var.Positive.t list * Q.t) list> prefixed_polynomial
+%type <PolyParserBuild.stmt list> stmt_list
+%type <string> var
+%type <string list> var_list
 %%
 one_prefixed_poly:
 	| prefixed_polynomial EOF {$1}
 	| EOF {[]}
 ;
 prefixed_polynomial:
-	| prefixed_element {[Stdlib.fst $1, Stdlib.snd $1]}
-	| prefixed_element PLUS prefixed_polynomial {((Stdlib.fst $1, Stdlib.snd $1) :: $3)}
-;
+	| prefixed_element {[fst $1, snd $1]}
+	| prefixed_element PLUS prefixed_polynomial {((fst $1, snd $1) :: $3)}
+;   
 prefixed_element:
 	| prefixed_monomial {$1}
 	| prefixed_monomial TIMES prefixed_element {(fst $1 @ fst $3, Q.mul (snd $1) (snd $3))}

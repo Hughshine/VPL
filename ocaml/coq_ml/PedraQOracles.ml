@@ -3,7 +3,7 @@
 (* see PedraQBackend.v                   *)
 (*                                       *)
 (*****************************************)
-
+(* open QArith_base *)
 
 module Nb = Scalar.Rat
 module Vec = Vector.Rat
@@ -47,8 +47,8 @@ let zToCoqZ: Z.t -> BinNums.coq_Z
 
 let nToNb: NumC.QNum.t -> Nb.t
 = fun q ->
-	let num = coqZToZ (QArith_base.coq_Qnum q) in
-	let den = coqPosToZ (QArith_base.coq_Qden q) in
+	let num = coqZToZ (q.coq_Qnum) in
+	let den = coqPosToZ (q.coq_Qden) in
 	Nb.ofZ num den
 
 let nToNumC: Nb.t -> NumC.QNum.t
